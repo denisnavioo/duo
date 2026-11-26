@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" data-modo="claro">
+<head th:replace="~{fragmentos :: cabeza('Calendario')}"></head>
+<body th:class="${yo.username}"
+      th:data-yo="${yo.username}" th:data-yo-nombre="${yo.nombre}"
+      th:data-otro="${otro.username}" th:data-otro-nombre="${otro.nombre}">
+
+<th:block th:replace="~{fragmentos :: iconos}"></th:block>
+
+<div class="app">
+  <header th:replace="~{fragmentos :: cabecera('calendario')}"></header>
+
+  <main class="contenido">
+  <section class="titular">
+    <div>
+      <h1>Calendario</h1>
+      <p class="sub">Lo de cada uno y lo que hacéis juntos</p>
+    </div>
+    <div class="pills" id="pills" aria-label="Planes de lo que se ve"></div>
+  </section>
+
+  <!-- Propuestas pendientes de respuesta -->
+  <section class="avisos" id="avisos" aria-live="polite"></section>
+
+  <!-- HERRAMIENTAS -->
+  <section class="herramientas">
+    <button class="btn redondo" id="ant" aria-label="Anterior"><svg class="ico"><use href="#i-flecha-i"/></svg></button>
+    <button class="btn" id="hoy">Hoy</button>
+    <button class="btn redondo" id="sig" aria-label="Siguiente"><svg class="ico"><use href="#i-flecha-d"/></svg></button>
+    <h2 id="rango"></h2>
+    <div class="segmentado" id="vistas">
+      <button aria-pressed="true" data-vista="semana">Semana</button>
+      <button aria-pressed="false" data-vista="mes">Mes</button>
+    </div>
+    <div class="filtros" id="filtros">
+      <button class="filtro" aria-pressed="true" data-f="todos">Todos</button>
+      <button class="filtro" aria-pressed="false" th:data-f="${yo.username}" th:style="|--c: var(--c-${yo.username})|"><i></i>Tú</button>
+      <button class="filtro" aria-pressed="false" th:data-f="${otro.username}" th:style="|--c: var(--c-${otro.username})|"><i></i><th:block th:text="${otro.nombre}">Otro</th:block></button>
+      <button class="filtro" aria-pressed="false" data-f="juntos" style="--c: var(--c-juntos)"><i></i>Juntos</button>
+    </div>
+  </section>
+
+  <!-- CUERPO -->
+  <div class="cuerpo">
+    <section id="calendario"></section>
+
+    <aside class="lateral">
+      <form class="caja" id="form-actividad">
+        <h2>Nueva actividad</h2>
+        <div class="campo">
+          <label>¿Quién participa?</label>
+          <div class="segmentado" id="f-quien">
+            <button type="button" aria-pressed="false" data-q="yo">Yo</button>
+            <button type="button" aria-pressed="false" data-q="otro" th:text="${otro.nombre}">Otro</button>
+            <button type="button" aria-pressed="true" data-q="juntos">Ambos</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="f-tipo">Plan</label>
+          <div class="con-icono">
+            <span class="icono-tipo" id="f-tipo-ico"></span>
+            <select id="f-tipo"></select>
+          </div>
+        </div>
+
+        <div class="nuevo-tipo" id="nuevo-tipo" hidden>
+          <div class="campo">
+            <label for="nt-nombre">Nuevo tipo de plan</label>
+            <input id="nt-nombre" placeholder="Ej. Concierto" maxlength="30">
+          </div>
+          <div class="campo">
+            <label>Icono</label>
+            <div class="iconos" id="nt-iconos"></div>
+          </div>
+          <div class="fila">
+            <button type="button" class="btn" id="nt-cancelar">Cancelar</button>
+            <button type="button" class="btn primario" id="nt-guardar">Guardar tipo</button>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="f-titulo">Detalle <small>(opcional)</small></label>
+          <input id="f-titulo" placeholder="Ej. Brunch en la terraza" maxlength="60">
+        </div>
+        <div class="campo">
+          <label for="f-lugar">Lugar <small>(opcional)</small></label>
+          <input id="f-lugar" placeholder="Ej. La Terraza del Puerto" maxlength="80">
+        </div>
+        <div class="campo">
+          <label for="f-desc">Descripción <small>(opcional)</small></label>
+          <textarea id="f-desc" rows="2" maxlength="500" placeholder="Ej. Reservado a nombre de Ana, llevar el regalo"></textarea>
+        </div>
+        <div class="fila fila-fecha">
+          <div class="campo">
+            <label for="f-dia">Día</label>
+            <button type="button" class="campo-fecha" id="f-dia" aria-haspopup="dialog" aria-expanded="false">
+              <svg class="ico"><use href="#i-calendario"/></svg><span id="f-dia-texto">Hoy</span>
+            </button>
+          </div>
+          <div class="selector-fecha" id="selector-fecha" role="dialog" aria-label="Elegir día" hidden>
+            <div class="sf-cab">
+              <button type="button" class="sf-nav" id="sf-ant" aria-label="Mes anterior"><svg class="ico"><use href="#i-flecha-i"/></svg></button>
+              <b id="sf-mes"></b>
+              <button type="button" class="sf-nav" id="sf-sig" aria-label="Mes siguiente"><svg class="ico"><use href="#i-flecha-d"/></svg></button>
+            </div>
+            <div class="sf-dias" id="sf-semana"></div>
+            <div class="sf-dias" id="sf-rejilla"></div>
+            <div class="sf-pie">
+              <button type="button" class="sf-rapido" data-mas="0">Hoy</button>
+              <button type="button" class="sf-rapido" data-mas="1">Mañana</button>
+              <button type="button" class="sf-rapido" data-mas="7">+1 semana</button>
+            </div>
+          </div>
+          <div class="campo">
+            <label for="f-hora">Hora</label>
+            <input id="f-hora" type="time" value="20:00" required>
+          </div>
+        </div>
+        <button class="btn primario" type="submit" id="f-enviar"><svg class="ico"><use href="#i-mas"/></svg>Crear actividad</button>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+      </form>
+
+      <div class="caja">
+        <h2>Próximos 7 días</h2>
+        <ul class="proximos" id="proximos"></ul>
+      </div>
+    </aside>
+  </div>
+  </main>
+</div>
+
+<!-- Ventana de un plan: verlo, cambiarlo o borrarlo -->
+<dialog class="perfil hoja-plan" id="dlg-plan" aria-labelledby="pl-titulo">
+  <div id="pl-ver">
+    <div class="pl-cab">
+      <span class="pl-tipo" id="pl-tipo"></span>
+      <button type="button" class="btn redondo pl-cerrar" data-cerrar aria-label="Cerrar"><svg class="ico"><use href="#i-cerrar"/></svg></button>
+    </div>
+    <h3 id="pl-titulo"></h3>
+    <ul class="pl-datos" id="pl-datos"></ul>
+    <p class="pl-desc" id="pl-desc"></p>
+    <div class="pl-fotos" id="pl-fotos"></div>
+    <input type="file" id="pl-archivo" accept="image/*" multiple hidden>
+    <p class="form-error" id="pl-error" role="alert" hidden></p>
+    <div class="confirmar-botones" id="pl-acciones"></div>
+  </div>
+
+  <form id="pl-form" hidden>
+    <h3>Editar plan</h3>
+    <div class="campo">
+      <label for="pe-tipo">Plan</label>
+      <select id="pe-tipo"></select>
+    </div>
+    <div class="campo">
+      <label for="pe-titulo">Título <small>(si lo dejas vacío, el del plan)</small></label>
+      <input id="pe-titulo" maxlength="60">
+    </div>
+    <div class="campo">
+      <label for="pe-desc">Descripción</label>
+      <textarea id="pe-desc" rows="4" maxlength="500" placeholder="Lo que queráis apuntar. Los enlaces (https://…) se podrán abrir."></textarea>
+    </div>
+    <div class="campo">
+      <label for="pe-lugar">Lugar</label>
+      <input id="pe-lugar" maxlength="80">
+    </div>
+    <div class="fila">
+      <div class="campo"><label for="pe-fecha">Día</label><input id="pe-fecha" type="date" required></div>
+      <div class="campo"><label for="pe-hora">Hora</label><input id="pe-hora" type="time" required></div>
+    </div>
+    <p class="form-error" id="pe-error" role="alert" hidden></p>
+    <div class="confirmar-botones">
+      <button type="button" class="btn" id="pe-cancelar">Cancelar</button>
+      <button type="submit" class="btn primario" id="pe-guardar">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Foto de un plan a pantalla completa -->
+<dialog class="visor-foto" id="dlg-foto" aria-label="Foto del plan">
+  <div class="vf-marco" id="vf-marco"></div>
+  <div class="vf-botones">
+    <button type="button" class="btn denegar" id="vf-borrar"><svg class="ico"><use href="#i-papelera"/></svg>Quitar foto</button>
+    <button type="button" class="btn" id="vf-cerrar">Cerrar</button>
+  </div>
+</dialog>
+
+<script th:src="@{/js/comun.js}"></script>
+<script th:src="@{/js/calendario.js}"></script>
+</body>
+</html>

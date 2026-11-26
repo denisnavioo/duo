@@ -1,0 +1,75 @@
+/* duo · Horarios (usa los colores y componentes de app.css) */
+
+/* Resumen de horas */
+.resumen-horas { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 14px; }
+.resumen-horas:empty { display: none; }
+
+/* Distribucion */
+.cuerpo-horario { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.rejilla-caja { padding: 16px 16px 16px 8px; overflow-x: auto; }
+
+/* ---------- Rejilla semanal (como la vista de semana de un calendario) ---------- */
+.rejilla-horario { --h: 52px; display: grid; grid-template-columns: 52px repeat(var(--dias), minmax(100px, 1fr)); min-width: calc(52px + var(--dias) * 100px); }
+.rejilla-horario .cab-dia { text-align: center; padding: 0 4px 12px; font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: var(--texto-suave); }
+.rejilla-horario .cab-dia.hoy { color: var(--acento); }
+.rejilla-horario .horas { position: relative; height: calc(var(--n) * var(--h)); }
+.rejilla-horario .horas span { position: absolute; right: 10px; transform: translateY(-50%); font-size: .75rem; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.rejilla-horario .col {
+  position: relative; height: calc(var(--n) * var(--h)); border-left: 1px solid var(--linea);
+  background-image: repeating-linear-gradient(to bottom, var(--linea) 0 1px, transparent 1px var(--h));
+}
+.rejilla-horario .col.hoy { background-color: rgba(var(--acento-rgb), .04); }
+
+.bloque {
+  position: absolute; left: 3px; right: 3px; overflow: hidden; padding: 5px 8px; border-radius: 7px; border: 0; cursor: default;
+  background: color-mix(in srgb, var(--c) 20%, var(--superficie));
+  color: color-mix(in srgb, var(--c) 62%, var(--texto));
+  font-size: .8125rem; line-height: 1.25; text-align: left; font-family: inherit;
+  display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch;
+}
+html[data-modo="oscuro"] .bloque { background: color-mix(in srgb, var(--c) 32%, var(--superficie)); color: color-mix(in srgb, var(--c) 35%, #fff); }
+.bloque.editable { cursor: pointer; }
+.bloque.editable:hover { background: color-mix(in srgb, var(--c) 30%, var(--superficie)); }
+.bloque.editable:focus-visible, .bloque.seleccionado { outline: 2px solid var(--c); outline-offset: 1px; }
+.bloque b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bloque small { display: block; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bloque .h { font-size: .75rem; opacity: .85; font-variant-numeric: tabular-nums; }
+/* Practicas y trabajo con rayas suaves para distinguirlos de las clases */
+.bloque.practicas, .bloque.trabajo {
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--c) 10%, transparent) 7px 14px);
+}
+.rejilla-horario .ahora { position: absolute; left: 0; right: 0; height: 2px; background: var(--peligro); z-index: 2; }
+.rejilla-horario .ahora::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--peligro); }
+
+/* ---------- Lista (movil) ---------- */
+.lista-horario { display: none; }
+.lista-horario .dia-lista { padding: 12px 0; border-top: 1px solid var(--linea); }
+.lista-horario .dia-lista:first-child { border-top: 0; padding-top: 0; }
+.lista-horario h5 { margin: 0 0 8px; font-size: .8125rem; font-weight: 600; color: var(--texto-suave); }
+.lista-horario .bloque { position: static; margin-bottom: 6px; display: block; width: 100%; }
+.lista-horario .libre { margin: 0; font-size: .875rem; color: var(--texto-suave); }
+
+/* ---------- Lateral ---------- */
+.nota { margin: 0; font-size: .9375rem; color: var(--texto-suave); line-height: 1.5; }
+.dias-chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dias-chips button { aspect-ratio: 1; border-radius: 50%; border: 0; background: var(--relleno); font-weight: 600; font-size: .875rem; cursor: pointer; }
+.dias-chips button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+.dias-chips.uno-solo button:not([aria-pressed="true"]) { opacity: .4; }
+.acciones-edicion { margin-top: 10px; }
+.acciones-edicion .btn { width: 100%; }
+
+@media (max-width: 1180px) {
+  .cuerpo-horario { grid-template-columns: 1fr; }
+  .lateral { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+}
+@media (max-width: 700px) {
+  .rejilla-horario { display: none; }
+  .lista-horario { display: block; }
+  .rejilla-caja { padding: 16px; }
+}
+
+/* Pantalla tactil: los 7 dias no caben a 44px de ancho; ganan altura (44px) y pierden separacion */
+@media (pointer: coarse) {
+  .dias-chips { gap: 3px; }
+  .dias-chips button { aspect-ratio: auto; min-height: 44px; border-radius: 12px; }
+}

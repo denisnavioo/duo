@@ -1,0 +1,248 @@
+/* duo · Repartir (usa los componentes de app.css y las listas/hojas de ahorros.css) */
+
+/* Tres vistas, como la navegación de iOS: todas las quedadas, una quedada o crear una nueva */
+.repartir { display: block; container: detalle / inline-size; }
+.repartir:not(.viendo):not(.creando) { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.col-quedadas { display: grid; gap: 24px; min-width: 0; }
+.lateral-q { display: grid; gap: 24px; }
+.repartir:is(.viendo, .creando) .lateral-q { display: none; }
+.repartir:is(.viendo, .creando) .col-quedadas { display: none; }
+.repartir:not(.viendo) .col-detalle { display: none; }
+.repartir:not(.creando) .vista-crear { display: none; }
+.vista-crear { display: grid; gap: 20px; }
+.col-detalle { display: grid; gap: 20px; min-width: 0; }
+
+/* La quedada: resultado y gastos a la izquierda (lo que se mira y se edita), cada uno a la derecha */
+.det-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.det-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; container-type: inline-size; }
+@container detalle (min-width: 700px) {
+  .det-cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+}
+/* Columnas estrechas: botón "Hecho" solo con el icono */
+@container (max-width: 400px) {
+  .deudas .btn { width: 30px; padding: 0; justify-content: center; }
+  .deudas .btn span { display: none; }
+  .saldos li .texto small { padding-left: 0; }
+  .deudas li { gap: 8px; }
+}
+
+/* ---------- Vista 1: todas las quedadas ---------- */
+.balance { margin-bottom: 0; }
+.balance .cifra { font-size: 1.25rem; }
+
+/* Con cada uno: lo que te deben o debes a cada persona, juntando todas las quedadas */
+.con-cada li { grid-template-columns: 1fr auto; }
+.con-cada .persona { gap: 10px; }
+.con-cada .cara { width: 30px; height: 30px; font-size: .8125rem; }
+.con-cada .texto { display: grid; gap: 1px; }
+.con-cada .texto b { font-weight: 500; }
+.con-cada .importe.le-deben { color: var(--ok); }
+
+/* Este año */
+.datos-anio { margin: 0; }
+.datos-anio div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--linea); font-size: .9375rem; }
+.datos-anio div:first-child { border-top: 0; }
+.datos-anio dt { color: var(--texto-suave); }
+.datos-anio dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.quedadas li { display: block; padding: 0; }
+.fila-q {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 14px; align-items: center;
+  padding: 12px 0; color: inherit; text-decoration: none;
+}
+.fila-q:hover b { color: var(--acento); }
+.fila-q .texto { display: grid; gap: 2px; min-width: 0; }
+.fila-q .texto b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila-q .texto small { color: var(--texto-suave); font-size: .8125rem; }
+.fila-q .importe { text-align: right; }
+.fila-q .importe small { display: block; font-size: .8125rem; font-weight: 500; color: var(--texto-suave); }
+.fila-q .chevron { color: var(--texto-suave); font-size: 15px; }
+.quedadas li .cargando { min-height: 60px; margin: 10px 0; }
+
+/* Icono del tipo de plan: cuadrado suave tintado con el acento, como los iconos de Ajustes */
+.tipo-ico { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(var(--acento-rgb), .12); color: var(--acento); font-size: 19px; flex: none; }
+.tipo-ico.grande { width: 56px; height: 56px; border-radius: 14px; font-size: 28px; }
+
+/* Caras solapadas de quien vino */
+.caras { display: inline-flex; padding-left: 6px; }
+.caras .cara { width: 24px; height: 24px; margin-left: -6px; font-size: .6875rem; box-shadow: 0 0 0 2px var(--superficie); }
+.caras .cara.mas { font-size: .625rem; }
+.caras .cara.neutra { background: var(--superficie-2); color: var(--texto-suave); }
+
+/* Sin quedadas todavía */
+.vacio-q { display: grid; justify-items: start; gap: 10px; padding: 28px; }
+.vacio-q h2 { margin: 6px 0 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+.vacio-q p { margin: 0 0 6px; max-width: 46ch; color: var(--texto-suave); line-height: 1.5; }
+
+.pendiente { color: var(--aviso) !important; }
+.saldada { color: var(--ok) !important; }
+
+/* ---------- Cabecera de la quedada ---------- */
+.cab-quedada { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.cab-texto { flex: 1 1 320px; min-width: 0; }
+/* Con una quedada abierta o creando una, su nombre es el título grande (como la navegación de iOS) */
+.contenido:has(.repartir:is(.viendo, .creando)) > .titular { display: none; }
+.vista-crear .volver { text-decoration: none; }
+.cab-quedada h1 { margin: 0; font-size: 2.125rem; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.cab-quedada p { margin: 4px 0 0; color: var(--texto-suave); font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.cab-quedada p b { font-weight: 600; }
+.cab-quedada .acciones-q { display: flex; gap: 8px; flex-wrap: wrap; }
+.volver { display: inline-flex; align-items: center; gap: 2px; margin: 0 0 4px -6px; padding: 4px 6px; border: 0; border-radius: 8px; background: none; color: var(--acento); font: inherit; font-size: .9375rem; cursor: pointer; }
+.volver:hover { background: var(--relleno); }
+.volver .ico { font-size: 17px; }
+
+/* Título que abre el menú para cambiar de quedada (como el título-menú de iOS) */
+.selector-q { position: relative; }
+.titulo-menu { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 0 0 0 -6px; padding: 2px 6px; border: 0; border-radius: 9px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.titulo-menu:hover { background: var(--relleno); }
+.titulo-menu .ico { flex: none; font-size: 18px; color: var(--acento); transform: rotate(90deg); transition: transform .2s; }
+.titulo-menu[aria-expanded="true"] .ico { transform: rotate(-90deg); }
+#menu-quedadas { top: calc(100% + 6px); left: -6px; min-width: 280px; max-height: min(420px, 70vh); overflow-y: auto; }
+#menu-quedadas [role="menuitem"] { justify-content: space-between; }
+#menu-quedadas [role="menuitem"] span { display: grid; text-align: left; }
+#menu-quedadas [role="menuitem"] b { font-weight: 500; }
+#menu-quedadas [role="menuitem"] small { font-size: .8125rem; color: var(--texto-suave); }
+#menu-quedadas [aria-current="true"] b { font-weight: 600; color: var(--acento); }
+#menu-quedadas [aria-current="true"] .ico { color: var(--acento); }
+#menu-quedadas .menu-nueva { justify-content: flex-start; margin-top: 4px; border-top: 1px solid var(--linea); border-radius: 0 0 8px 8px; color: var(--acento); }
+#menu-quedadas .menu-nueva .ico { color: var(--acento); }
+
+/* ---------- Quién debe a quién ---------- */
+.deudas li { grid-template-columns: 1fr auto auto; }
+.deuda { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; font-weight: 500; }
+.deuda .persona { min-width: 0; }
+.deuda .ico { color: var(--texto-suave); font-size: 15px; }
+.deudas .btn { min-height: 30px; padding: 4px 12px; font-size: .8125rem; }
+.en-paz { display: flex; align-items: center; gap: 10px; margin: 0; padding: 4px 0; font-weight: 500; color: var(--ok); }
+.en-paz .ico { font-size: 20px; }
+
+/* Avatar con la inicial (color propio por persona) */
+.cara { font-style: normal; display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--c); color: #fff; font-size: .75rem; font-weight: 700; }
+.persona { display: inline-flex; align-items: center; gap: 7px; }
+.cara.neutra { background: var(--relleno); color: var(--texto); }
+
+/* ---------- Gastos ---------- */
+.gastos-q li { grid-template-columns: 1fr auto auto; }
+.gastos-q li .texto { display: grid; gap: 1px; min-width: 0; }
+.gastos-q li .texto button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.gastos-q li .texto button:hover b { color: var(--acento); }
+
+/* ---------- Saldos ---------- */
+.saldos li { grid-template-columns: 1fr auto auto; }
+.saldos li .texto { display: grid; gap: 3px; min-width: 0; }
+.saldos li .texto small { padding-left: 33px; }
+.saldos .importe small { display: block; font-size: .75rem; font-weight: 500; color: var(--texto-suave); text-align: right; }
+.saldos .importe.le-deben { color: var(--ok); }
+.saldos .borrar[disabled] { visibility: hidden; }
+
+/* ---------- Opciones tipo píldora (personas en las hojas) ---------- */
+.etiqueta { font-size: .8125rem; font-weight: 500; color: var(--texto-suave); }
+.opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.opciones button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px 4px 5px; border-radius: 999px;
+  border: 1px solid var(--linea); background: var(--superficie); color: var(--texto); font: inherit; font-size: .875rem; font-weight: 500; cursor: pointer;
+}
+.opciones button .cara { width: 24px; height: 24px; background: var(--relleno); color: var(--texto-suave); }
+.opciones button[aria-pressed="true"], .opciones button[aria-checked="true"] {
+  border-color: var(--acento); background: rgba(var(--acento-rgb), .1); color: var(--acento);
+}
+.opciones button[aria-pressed="true"] .cara, .opciones button[aria-checked="true"] .cara { background: var(--c); color: #fff; }
+.opciones button[aria-pressed="true"] .cara.neutra, .opciones button[aria-checked="true"] .cara.neutra { background: rgba(var(--acento-rgb), .18); color: var(--acento); }
+.campo-con-boton > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.ayuda b { color: var(--texto); }
+
+.aviso-ok { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; margin: 0; padding: 10px 16px; border-radius: 12px; background: var(--texto); color: var(--fondo); font-size: .875rem; font-weight: 500; box-shadow: var(--sombra-flotante); }
+
+/* ---------- Responsive: en el móvil, lista o detalle ---------- */
+/* ---------- Vista 3: nueva quedada ---------- */
+.vista-crear .form-error { margin: 0; }
+.campo-grande { min-height: 48px !important; font-size: 1.125rem !important; font-weight: 600; }
+
+/* Tipos de plan: mosaico de iconos; el elegido se rellena con el acento */
+.tipos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@container (min-width: 500px) { .tipos { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.tipos button {
+  display: grid; justify-items: center; gap: 6px; padding: 10px 4px 8px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--texto); font: inherit; font-size: .8125rem; font-weight: 500; cursor: pointer;
+}
+.tipos button:hover { background: var(--relleno); }
+.tipos button[aria-checked="true"] { color: var(--acento); font-weight: 600; }
+.tipos button[aria-checked="true"] .tipo-ico { background: var(--acento); color: #fff; }
+.tipos .tipo-ico { transition: background .15s, color .15s; }
+
+/* Quién vino: filas como al elegir contactos en iOS, con círculo de marca a la derecha */
+.gente li { display: block; padding: 0; }
+.gente li > button {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 10px 0;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.gente .cara { width: 32px; height: 32px; font-size: .875rem; }
+.gente .texto { display: grid; gap: 1px; }
+.gente .texto b { font-weight: 500; }
+.gente .texto small { font-size: .8125rem; color: var(--texto-suave); }
+.gente .marca {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 1.5px solid var(--linea-fuerte); color: transparent; font-size: 14px; font-style: normal; transition: background .15s, border-color .15s;
+}
+.gente .marca .ico { stroke-width: 2.6; }
+.gente [aria-checked="true"] .marca { background: var(--acento); border-color: var(--acento); color: #fff; }
+.gente [aria-checked="false"] .cara:not(.neutra) { opacity: .55; }
+.fila-nueva { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0 8px; border-top: 1px solid var(--linea); }
+.fila-nueva .cara { width: 32px; height: 32px; font-size: 16px; color: var(--acento); background: rgba(var(--acento-rgb), .12); }
+.fila-nueva input { width: 100%; min-width: 0; min-height: 36px; border: 0; background: transparent; padding: 0; font: inherit; color: var(--texto); outline: none; }
+.fila-nueva input::placeholder { color: var(--texto-suave); }
+.nota-grupo { margin: 8px 4px 0; font-size: .8125rem; color: var(--texto-suave); }
+
+@media (max-width: 1180px) {
+  .repartir:not(.viendo):not(.creando) { grid-template-columns: minmax(0, 1fr); }
+  .lateral-q { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+}
+@media (max-width: 860px) {
+  .col-quedadas { max-width: none; }
+  .cab-quedada { align-items: flex-start; }
+  .cab-quedada h1 { font-size: 1.875rem; }
+  .cab-quedada .acciones-q { width: 100%; flex-wrap: nowrap; }
+  .cab-quedada .acciones-q .btn:not(.redondo) { flex: 1; justify-content: center; }
+  .fila-q { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; }
+  .fila-q .caras { display: none; }
+  .solo-ancho { display: none; }
+  .aviso-ok { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+
+
+/* Pantalla tactil: el enlace "< Quedadas" de volver, con zona de toque de 44px */
+@media (pointer: coarse) {
+  .volver { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+/* ---------- Bizums hechos comprobados con el banco ---------- */
+.pagos-hechos li { grid-template-columns: minmax(0, 1fr) auto auto auto; row-gap: 4px; }
+.btn.btn-banco { min-height: 30px; padding: 4px 10px; font-size: .8125rem; }
+.btn.btn-banco .ico { font-size: 14px; }
+.btn.btn-banco.quitar { background: transparent; color: var(--texto-suave); }
+.btn.btn-banco.quitar:hover { color: var(--peligro); }
+.prueba-banco {
+  grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 6px; min-width: 0;
+  font-size: .8125rem; color: var(--ok); line-height: 1.35;
+}
+.prueba-banco .ico { flex: none; margin-top: 2px; font-size: 13px; }
+.prueba-banco span { min-width: 0; overflow-wrap: anywhere; color: color-mix(in srgb, var(--ok) 70%, var(--texto)); }
+@container (max-width: 400px) { .btn.btn-banco span { display: none; } .btn.btn-banco:not(.quitar) { width: 30px; padding: 0; } }
+
+/* Hoja para elegir el movimiento */
+.hoja-banco { width: min(480px, calc(100vw - 32px)); }
+.hb-lista { display: grid; gap: 2px; max-height: min(52vh, 420px); overflow-y: auto; margin: 4px -6px 12px; padding: 0 6px; overscroll-behavior: contain; }
+.hb-lista h4 { margin: 6px 0 4px; font-size: .8125rem; font-weight: 600; color: var(--texto-suave); }
+.hb-mov {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%;
+  min-height: 48px; padding: 8px 10px; border: 0; border-radius: 10px; background: var(--superficie-2);
+  color: var(--texto); font: inherit; text-align: left; cursor: pointer; margin-bottom: 4px;
+}
+.hb-mov:hover { background: color-mix(in srgb, var(--acento) 12%, var(--superficie-2)); }
+.hb-mov:focus-visible { outline: 3px solid rgba(var(--acento-rgb), .45); outline-offset: 1px; }
+.hb-mov:disabled { opacity: .5; cursor: default; }
+.hb-fecha { font-size: .8125rem; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.hb-concepto { min-width: 0; font-size: .875rem; overflow-wrap: anywhere; }
+.hb-importe { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hb-importe.entra { color: var(--ok); }
+.hb-otros summary { cursor: pointer; padding: 8px 0; font-size: .875rem; font-weight: 500; color: var(--acento); }
+.hb-aviso { margin: 4px 0 10px; font-size: .875rem; color: var(--texto-suave); line-height: 1.45; }

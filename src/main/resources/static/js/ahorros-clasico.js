@@ -1,0 +1,894 @@
+/* Duo · Ahorros (pagina de siempre, con "Mi plan" / "Mes a mes"): la usa quien no esta en duo.ahorros.vista-nueva */
+(() => {
+  "use strict";
+  const { api, esc, icono, iso, desdeIso, euros, MESES } = window.Duo;
+  const $ = id => document.getElementById(id);
+  const cuerpo = document.body;
+  const YO = cuerpo.dataset.yo, OTRO = cuerpo.dataset.otro;
+  const nombres = { [YO]: cuerpo.dataset.yoNombre, [OTRO]: cuerpo.dataset.otroNombre };
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  let mesVisto = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const claveMes = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const nombreMes = d => `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+  const num = v => Number(v) || 0;
+  const fechaCorta = s => { const f = desdeIso(s); return `${f.getDate()} ${MESES[f.getMonth()].slice(0, 3)}`; };
+
+  let datosMes = null, subs = [], movs = [], objetivos = [], bancoEstado = null, bancoPendientes = [], bancoReglas = [];
+
+  const REPARTO = [
+    { k: "ahorro", n: "Ahorro", c: "var(--c-verde)" },
+    { k: "variables", n: "Gastos variables", c: "var(--c-naranja)" },
+    { k: "fijos", n: "Gastos fijos", c: "var(--c-gris)" },
+    { k: "ocio", n: "Ocio", c: "var(--c-turquesa)" }
+  ];
+  const FRECUENCIA = { MENSUAL: "al mes", TRIMESTRAL: "cada 3 meses", ANUAL: "al año" };
+
+  /* ---------------- Errores ---------------- */
+  let temporizadorError;
+  function mostrarError(msg) {
+    // Con una hoja abierta, el error se ve dentro de ella (el aviso flotante quedaria debajo)
+    const e = document.querySelector("dialog.hoja[open] .form-error") || $("error");
+    e.textContent = msg; e.hidden = false;
+    clearTimeout(temporizadorError); temporizadorError = setTimeout(() => e.hidden = true, 4000);
+  }
+  async function intentar(fn) { try { await fn(); } catch (err) { mostrarError(err.message); } }
+
+  /* ---------------- Calculos ---------------- */
+  const totalIngresos = () => datosMes.ingresos.reduce((s, i) => s + num(i.importe), 0);
+  const totalGastos = () => datosMes.gastos.reduce((s, g) => s + num(g.importe), 0);
+  const partida = k => totalIngresos() * num(datosMes.reparto[k]) / 100;
+  const subsMensual = () => subs.reduce((s, x) => s + num(x.costeMensual), 0);
+  const subsSinUso = () => subs.filter(x => !x.enUso).reduce((s, x) => s + num(x.costeMensual), 0);
+
+  /* ---------------- Resumen ---------------- */
+  function pintarResumen() {
+    const ingresos = totalIngresos();
+    const objetivoAhorro = partida("ahorro");
+    const ahorrado = num(datosMes.ahorradoEnElMes);
+    const presupuestoVar = partida("variables");
+    const gastado = totalGastos();
+    const fijos = subsMensual(), presupuestoFijos = partida("fijos");
+    const pctAhorro = objetivoAhorro > 0 ? Math.min(100, ahorrado / objetivoAhorro * 100) : 0;
+    const pctGasto = presupuestoVar > 0 ? Math.min(100, gastado / presupuestoVar * 100) : (gastado > 0 ? 100 : 0);
+    const quedan = presupuestoVar - gastado;
+
+    $("resumen").innerHTML = `
+      <article class="tarjeta-dato vidrio destacada">
+        <header>${icono("cartera")}Ingresos del mes</header>
+        <div class="cifra">${euros(ingresos)}</div>
+        <div class="sub">En la cuenta tras ahorrar: <b>${euros(ingresos - objetivoAhorro)}</b></div>
+      </article>
+      <article class="tarjeta-dato vidrio">
+        <header>${icono("hucha")}Ahorro del mes</header>
+        <div class="cifra">${euros(ahorrado)}</div>
+        <div class="progreso"><i style="width:${pctAhorro}%"></i></div>
+        <div class="sub">Objetivo <b>${euros(objetivoAhorro)}</b> (${num(datosMes.reparto.ahorro)}%)</div>
+      </article>
+      <article class="tarjeta-dato vidrio">
+        <header>${icono("grafica")}Gastos variables</header>
+        <div class="cifra ${quedan < 0 ? "estado-malo" : ""}">${euros(gastado)}</div>
+        <div class="progreso ${quedan < 0 ? "pasado" : ""}"><i style="width:${pctGasto}%"></i></div>
+        <div class="sub">${quedan >= 0 ? `Te quedan <b class="estado-bueno">${euros(quedan)}</b>` : `Te has pasado <b class="estado-malo">${euros(-quedan)}</b>`} de ${euros(presupuestoVar)}</div>
+      </article>
+      <article class="tarjeta-dato vidrio">
+        <header>${icono("tarjeta")}Fijos al mes</header>
+        <div class="cifra ${presupuestoFijos > 0 && fijos > presupuestoFijos ? "estado-malo" : ""}">${euros(fijos)}</div>
+        <div class="sub">Presupuesto <b>${euros(presupuestoFijos)}</b>${subsSinUso() > 0 ? ` · <b class="estado-malo">${euros(subsSinUso())}</b> sin usar` : ""}</div>
+      </article>`;
+  }
+
+  /* ---------------- Ingresos ---------------- */
+  function pintarIngresos() {
+    $("ingresos-total").textContent = euros(totalIngresos());
+    $("lista-ingresos").innerHTML = datosMes.ingresos.map(i => `
+      <li><span></span><span class="texto"><b>${esc(i.concepto)}</b></span><span class="importe">${euros(i.importe)}</span>
+      <button class="borrar" data-borrar="ingresos/${i.id}" aria-label="Borrar ingreso">${icono("papelera")}</button></li>`).join("")
+      || `<li class="vacia">Añade lo que ganas este mes (sueldo, prácticas, extras...).</li>`;
+  }
+
+  /* ---------------- Reparto ---------------- */
+  function pintarReparto(soloCalculos = false) {
+    const r = datosMes.reparto;
+    const totalPct = REPARTO.reduce((s, x) => s + num(r[x.k]), 0);
+    $("barra-reparto").innerHTML = REPARTO.map(x => `<i style="--c:${x.c}; width:${num(r[x.k])}%"></i>`).join("");
+    if (!soloCalculos) {
+      $("reparto").innerHTML = REPARTO.map(x => `
+        <div class="linea" style="--c:${x.c}"><i></i><label for="rp-${x.k}">${x.n}</label>
+          <span class="pct"><input id="rp-${x.k}" data-k="${x.k}" type="number" min="0" max="100" step="0.5" value="${num(r[x.k])}"></span>
+          <span class="eur" id="rp-eur-${x.k}"></span></div>`).join("");
+    }
+    REPARTO.forEach(x => { $(`rp-eur-${x.k}`).textContent = euros(partida(x.k)); });
+    const restante = totalIngresos() * (100 - totalPct) / 100;
+    $("reparto-estado").innerHTML = Math.abs(totalPct - 100) < 0.01
+      ? `<span class="estado-bueno">100%</span>`
+      : `<span class="estado-malo">${totalPct}% (debe sumar 100)</span>`;
+    $("reparto-datos").innerHTML = `
+      <dt>Dinero sin repartir</dt><dd class="${Math.abs(restante) > 0.004 ? "estado-malo" : ""}">${euros(restante)}</dd>
+      <dt>Dinero al mes en la cuenta</dt><dd>${euros(totalIngresos() - partida("ahorro"))}</dd>`;
+  }
+  let temporizadorReparto;
+  $("reparto").addEventListener("input", e => {
+    const k = e.target.dataset.k; if (!k) return;
+    datosMes.reparto[k] = num(e.target.value);
+    pintarReparto(true); pintarResumen(); pintarGastos();
+    clearTimeout(temporizadorReparto);
+    temporizadorReparto = setTimeout(() => intentar(async () => {
+      const r = datosMes.reparto;
+      datosMes.reparto = await api(`/api/ahorros/mes/${claveMes(mesVisto)}/reparto`, {
+        method: "PUT", body: JSON.stringify({ ahorro: num(r.ahorro), variables: num(r.variables), fijos: num(r.fijos), ocio: num(r.ocio) })
+      });
+      $("aviso-copiar").hidden = true;
+    }), 600);
+  });
+
+  /* ---------------- Gastos variables ---------------- */
+  function pintarGastos() {
+    const gastado = totalGastos(), presupuesto = partida("variables");
+    $("gastos-total").textContent = `${euros(gastado)} de ${euros(presupuesto)}`;
+    const pct = presupuesto > 0 ? Math.min(100, gastado / presupuesto * 100) : 0;
+    const sobrante = presupuesto - gastado;
+    $("medidor-gastos").innerHTML = `
+      <div class="progreso ${sobrante < 0 ? "pasado" : ""}"><i style="width:${pct}%"></i></div>
+      <div class="textos"><span>Gastado <b>${euros(gastado)}</b></span>
+      <span>Sobrante respecto al reparto: <b class="${sobrante < 0 ? "estado-malo" : "estado-bueno"}">${euros(sobrante)}</b></span></div>`;
+
+    const porCat = {};
+    datosMes.gastos.forEach(g => porCat[g.categoria] = (porCat[g.categoria] || 0) + num(g.importe));
+    const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+    const max = cats.length ? cats[0][1] : 1;
+    $("por-categoria").innerHTML = cats.map(([c, v]) => `
+      <div class="cat"><span>${esc(c)}</span><div class="progreso"><i style="width:${v / max * 100}%"></i></div><em>${euros(v)}</em></div>`).join("");
+
+    $("lista-gastos").innerHTML = datosMes.gastos.map(g => `
+      <li><span class="fecha">${fechaCorta(g.fecha)}</span>
+        <span class="texto"><b>${esc(g.descripcion || g.categoria)}</b>${g.descripcion || g.origenBanco ? `<small>${g.descripcion ? esc(g.categoria) : ""}${g.origenBanco ? `${g.descripcion ? " · " : ""}Banco` : ""}</small>` : ""}</span>
+        <span class="importe">${euros(g.importe)}</span>
+        <button class="borrar" data-borrar="gastos/${g.id}" aria-label="Borrar gasto">${icono("papelera")}</button></li>`).join("")
+      || `<li class="vacia">Sin gastos variables este mes.</li>`;
+    $("categorias").innerHTML = (datosMes.categorias || []).map(c => `<option value="${esc(c)}">`).join("");
+  }
+
+  /* ---------------- Banco conectado por PSD2 ---------------- */
+  const fechaBanco = valor => valor ? new Date(valor).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" }) : "";
+  function pintarBanco() {
+    if (!bancoEstado) return;
+    // De momento solo algunas cuentas pueden conectar el banco: al resto no se le muestra
+    $("banco-seccion").hidden = !bancoEstado.permitido;
+    $("banco-revision").hidden = true;
+    if (!bancoEstado.permitido) return;
+    const mensaje = $("banco-mensaje"), conectado = bancoEstado.conectado;
+    $("banco-conectar").hidden = !bancoEstado.disponible || conectado;
+    $("banco-sincronizar").hidden = !conectado;
+    $("banco-desconectar").hidden = !conectado;
+    if (!bancoEstado.disponible) {
+      mensaje.textContent = "No disponible todavía: falta configurar Enable Banking (mira el README).";
+    } else if (conectado) {
+      let texto = `${bancoEstado.banco || "Banco"} conectado`;
+      if (bancoEstado.validoHasta) {
+        const dias = Math.ceil((new Date(bancoEstado.validoHasta) - new Date()) / 864e5);
+        texto += ` · permiso hasta ${new Date(bancoEstado.validoHasta).toLocaleDateString("es-ES")}`;
+        if (dias <= 7) texto += " · reconecta pronto para que no se interrumpa";
+      }
+      if (bancoEstado.ultimaSincronizacion) texto += ` · última actualización: ${fechaBanco(bancoEstado.ultimaSincronizacion)}`;
+      mensaje.textContent = texto;
+      if (bancoEstado.ultimoError) mensaje.textContent += ` · Aviso: ${bancoEstado.ultimoError}`;
+    } else {
+      mensaje.textContent = bancoEstado.estado === "REVISAR"
+        ? `Hay que volver a autorizar la conexión.${bancoEstado.ultimoError ? " " + bancoEstado.ultimoError : ""}`
+        : "Conecta tu banco para importar movimientos y actualizar el saldo de la cuenta.";
+    }
+    const pendientes = $("banco-revision");
+    pendientes.hidden = bancoPendientes.length === 0;
+    $("banco-revision-total").textContent = bancoPendientes.length ? `${bancoPendientes.length} movimientos` : "";
+    const categorias = [...new Set([...(datosMes?.categorias || []), "Comida", "Cenas", "Compra", "Transporte", "Ocio", "Sin categoría"])];
+    $("banco-revision-lista").innerHTML = bancoPendientes.map(m => `
+      <article class="banco-revision-fila" data-revision="${m.id}">
+        <div class="banco-revision-texto"><b>${esc(m.concepto)}</b><small>${fechaCorta(m.fecha)} · ${euros(m.importe)}</small></div>
+        <label class="sr-solo" for="banco-cat-${m.id}">Categoría de ${esc(m.concepto)}</label>
+        <select id="banco-cat-${m.id}" data-categoria>${categorias.map(c => `<option>${esc(c)}</option>`).join("")}</select>
+        <button type="button" class="btn" data-accion="CATEGORIA">Guardar</button>
+        <button type="button" class="btn" data-accion="CATEGORIA" data-crear-regla="true">Guardar + regla</button>
+        <button type="button" class="btn" data-accion="IGNORAR">Ignorar</button>
+      </article>`).join("");
+    $("banco-reglas-lista").innerHTML = bancoReglas.map(r => `<li><span>«${esc(r.contiene)}» · ${r.accion === "IGNORAR" ? "ignorar" : r.accion === "FIJO" ? "gasto fijo" : esc(r.categoria)}</span><span class="banco-regla-botones"><button type="button" class="btn" data-editar-regla="${r.id}">Editar</button><button type="button" class="borrar" data-borrar-regla="${r.id}" aria-label="Eliminar regla">${icono("papelera")}</button></span></li>`).join("")
+      || `<li class="banco-sin-reglas">Aún no tienes reglas guardadas.</li>`;
+  }
+
+  $("banco-conectar").addEventListener("click", () => intentar(async () => {
+    const r = await api("/api/ahorros/banco/conectar", { method: "POST" });
+    window.location.assign(r.url);
+  }));
+  $("banco-sincronizar").addEventListener("click", () => intentar(async () => {
+    const b = $("banco-sincronizar"); b.disabled = true;
+    try { await api("/api/ahorros/banco/sincronizar", { method: "POST" }); await recargar(); }
+    finally { b.disabled = false; }
+  }));
+  $("banco-desconectar").addEventListener("click", () => intentar(async () => {
+    if (!window.confirm("¿Desconectar el banco? Los movimientos ya importados se conservarán.")) return;
+    await api("/api/ahorros/banco/desconectar", { method: "DELETE" }); await recargar();
+  }));
+  $("banco-revision-lista").addEventListener("click", e => {
+    const boton = e.target.closest("[data-accion]"); if (!boton) return;
+    const fila = boton.closest("[data-revision]");
+    intentar(async () => {
+      const pendiente = bancoPendientes.find(m => String(m.id) === fila.dataset.revision);
+      await api(`/api/ahorros/banco/revisar/${fila.dataset.revision}`, { method: "POST", body: JSON.stringify({
+        accion: boton.dataset.accion, categoria: fila.querySelector("[data-categoria]").value,
+        crearRegla: boton.dataset.crearRegla === "true", contiene: pendiente?.concepto
+      }) });
+      await recargar();
+    });
+  });
+  $("banco-form-regla").addEventListener("submit", e => {
+    e.preventDefault(); const f = e.currentTarget;
+    intentar(async () => {
+      const id = f.querySelector('[name="id"]').value;
+      await api(id ? `/api/ahorros/banco/reglas/${id}` : "/api/ahorros/banco/reglas", {
+        method: id ? "PUT" : "POST", body: JSON.stringify({ contiene: f.contiene.value, accion: f.accion.value, categoria: f.categoria.value })
+      });
+      f.reset(); f.querySelector('[name="id"]').value = "";
+      f.querySelector('[type="submit"]').textContent = "Añadir regla";
+      f.querySelector(".banco-regla-categoria").hidden = false; $("banco-cancelar-regla").hidden = true;
+      await recargar();
+    });
+  });
+  $("banco-reglas-lista").addEventListener("click", e => {
+    const editar = e.target.closest("[data-editar-regla]");
+    if (editar) {
+      const regla = bancoReglas.find(r => String(r.id) === editar.dataset.editarRegla), form = $("banco-form-regla");
+      if (!regla) return;
+      form.querySelector('[name="id"]').value = regla.id; form.contiene.value = regla.contiene;
+      form.accion.value = regla.accion; form.categoria.value = regla.categoria || "";
+      form.querySelector(".banco-regla-categoria").hidden = regla.accion !== "CATEGORIA";
+      form.querySelector('[type="submit"]').textContent = "Guardar cambios"; $("banco-cancelar-regla").hidden = false;
+      form.closest("details").open = true; form.contiene.focus(); return;
+    }
+    const b = e.target.closest("[data-borrar-regla]"); if (!b) return;
+    intentar(async () => { await api(`/api/ahorros/banco/reglas/${b.dataset.borrarRegla}`, { method: "DELETE" }); await recargar(); });
+  });
+  $("banco-form-regla").querySelector('[name="accion"]').addEventListener("change", e => {
+    $("banco-form-regla").querySelector(".banco-regla-categoria").hidden = e.target.value !== "CATEGORIA";
+  });
+  $("banco-cancelar-regla").addEventListener("click", () => {
+    const form = $("banco-form-regla"); form.reset(); form.querySelector('[name="id"]').value = "";
+    form.querySelector('[type="submit"]').textContent = "Añadir regla"; $("banco-cancelar-regla").hidden = true;
+    form.querySelector(".banco-regla-categoria").hidden = false;
+  });
+
+  /* ---------------- Suscripciones ---------------- */
+  function pintarSubs() {
+    $("subs-total").textContent = `${euros(subsMensual())}/mes`;
+    const sinUso = subsSinUso();
+    const consejo = $("subs-consejo");
+    consejo.hidden = sinUso <= 0;
+    if (sinUso > 0) {
+      const n = subs.filter(x => !x.enUso).length;
+      consejo.innerHTML = `${icono("aviso")}<span>Tienes ${n} ${n === 1 ? "gasto fijo que no usas: cancelándolo" : "gastos fijos que no usas: cancelándolos"} ahorrarías <b>${euros(sinUso)}</b> al mes (${euros(sinUso * 12)} al año).</span>`;
+    }
+    const en7 = iso(new Date(hoy.getTime() + 7 * 864e5));
+    $("lista-subs").innerHTML = subs.map(s => {
+      const pronto = s.siguienteCobro <= en7;
+      const dif = Math.round((desdeIso(s.siguienteCobro) - hoy) / 864e5);
+      const cuando = dif === 0 ? "hoy" : dif === 1 ? "mañana" : fechaCorta(s.siguienteCobro);
+      return `<li class="${s.enUso ? "" : "sin-uso"} ${pronto ? "pronto" : ""}">
+        <span class="icono-sub">${icono(pronto ? "campana" : "tarjeta")}</span>
+        <span class="texto"><b>${esc(s.nombre)}</b><small>Próximo cobro: ${cuando}${s.nota ? " · " + esc(s.nota) : ""}</small></span>
+        <span class="importe">${euros(s.precio)} <small style="font-weight:500;color:var(--texto-suave)">${FRECUENCIA[s.frecuencia] || ""}</small></span>
+        <button class="interruptor" data-sub="${s.id}" aria-pressed="${s.enUso}" title="¿Lo uso?"><i></i>Lo uso</button>
+        <button class="borrar" data-borrar="suscripciones/${s.id}" aria-label="Borrar">${icono("papelera")}</button></li>`;
+    }).join("") || `<li class="vacia">Añade tus suscripciones y gastos fijos (Netflix, transporte, gimnasio...).</li>`;
+  }
+  $("lista-subs").addEventListener("click", e => {
+    const b = e.target.closest("[data-sub]"); if (!b) return;
+    intentar(async () => {
+      const actual = subs.find(s => String(s.id) === b.dataset.sub);
+      const nueva = await api(`/api/ahorros/suscripciones/${actual.id}`, { method: "PATCH", body: JSON.stringify({ enUso: !actual.enUso }) });
+      subs = subs.map(s => s.id === nueva.id ? nueva : s);
+      pintarSubs(); pintarResumen();
+    });
+  });
+
+  /* ---------------- Cuentas de ahorro ---------------- */
+  function pintarCuentas() {
+    const porCuenta = {};
+    movs.forEach(m => porCuenta[m.cuenta] = (porCuenta[m.cuenta] || 0) + num(m.cantidad));
+    const total = Object.values(porCuenta).reduce((s, v) => s + v, 0);
+    $("cuentas-total").textContent = `Total ${euros(total)}`;
+    $("cuentas").innerHTML = Object.entries(porCuenta).map(([c, v]) => `<div class="cuenta"><small>${esc(c)}</small><b>${euros(v)}</b></div>`).join("");
+    $("lista-cuentas").innerHTML = Object.keys(porCuenta).map(c => `<option value="${esc(c)}">`).join("");
+    $("lista-movs").innerHTML = movs.slice(0, 12).map(m => `
+      <li><span class="fecha">${fechaCorta(m.fecha)}</span>
+        <span class="texto"><b>${esc(m.cuenta)}</b>${m.nota ? `<small>${esc(m.nota)}</small>` : ""}</span>
+        <span class="importe ${num(m.cantidad) < 0 ? "negativo" : "estado-bueno"}">${num(m.cantidad) > 0 ? "+" : ""}${euros(m.cantidad)}</span>
+        <button class="borrar" data-borrar="movimientos/${m.id}" aria-label="Borrar movimiento">${icono("papelera")}</button></li>`).join("")
+      || `<li class="vacia">Apunta lo que metes (o sacas) de cada cuenta de ahorro.</li>`;
+  }
+
+  /* ---------------- Objetivos en comun ---------------- */
+  function pintarObjetivos() {
+    $("objetivos").innerHTML = objetivos.map(o => {
+      const meta = num(o.meta), aportado = num(o.aportado);
+      const por = { [YO]: 0, [OTRO]: 0 };
+      o.aportaciones.forEach(a => por[a.usuario] = (por[a.usuario] || 0) + num(a.cantidad));
+      const pct = q => meta > 0 ? Math.max(0, Math.min(100, por[q] / meta * 100)) : 0;
+      const falta = meta - aportado;
+      let ritmo = "";
+      if (o.fechaLimite && falta > 0) {
+        const f = desdeIso(o.fechaLimite);
+        const meses = Math.max(1, (f.getFullYear() - hoy.getFullYear()) * 12 + f.getMonth() - hoy.getMonth());
+        ritmo = ` · ${euros(falta / meses)}/mes entre los dos hasta ${fechaCorta(o.fechaLimite)}`;
+      }
+      return `<article class="objetivo ${falta <= 0 ? "cumplido" : ""}" data-obj="${o.id}">
+        <header><b>${esc(o.nombre)}</b><span>${euros(aportado)} de ${euros(meta)}</span></header>
+        <div class="barra-obj"><i style="--c:var(--c-${esc(YO)}); width:${pct(YO)}%"></i><i style="--c:var(--c-${esc(OTRO)}); width:${pct(OTRO)}%"></i></div>
+        <div class="quien">
+          <span style="--c:var(--c-${esc(YO)})">Tú <strong>${euros(por[YO])}</strong></span>
+          <span style="--c:var(--c-${esc(OTRO)})">${esc(nombres[OTRO])} <strong>${euros(por[OTRO])}</strong></span>
+          <span style="--c:transparent">${falta > 0 ? `Faltan <strong>${euros(falta)}</strong>${ritmo}` : `<strong class="estado-bueno">¡Conseguido!</strong>`}</span>
+        </div>
+        <form class="aportar">
+          <input type="number" step="0.01" placeholder="Aportar €" required aria-label="Cantidad a aportar">
+          <button class="btn primario" type="submit">${icono("mas")}Aportar</button>
+          <button class="borrar" type="button" data-borrar-obj="${o.id}" aria-label="Borrar objetivo">${icono("papelera")}</button>
+        </form>
+      </article>`;
+    }).join("") || `<p class="filas"><span class="vacia">Cread una meta para ahorrar juntos (un viaje, un piso, un capricho...).</span></p>`;
+  }
+  $("objetivos").addEventListener("submit", e => {
+    e.preventDefault();
+    const art = e.target.closest("[data-obj]");
+    const cantidad = num(e.target.querySelector("input").value);
+    intentar(async () => {
+      const nuevo = await api(`/api/ahorros/objetivos/${art.dataset.obj}/aportaciones`, { method: "POST", body: JSON.stringify({ cantidad, fecha: iso(hoy) }) });
+      objetivos = objetivos.map(o => o.id === nuevo.id ? nuevo : o);
+      pintarObjetivos();
+    });
+  });
+  $("objetivos").addEventListener("click", e => {
+    const b = e.target.closest("[data-borrar-obj]"); if (!b) return;
+    const o = objetivos.find(x => String(x.id) === b.dataset.borrarObj);
+    intentar(async () => {
+      const ok = await window.Duo.confirmar({
+        titulo: "¿Borrar el objetivo?",
+        html: `<p>Se borrará <b>«${esc(o.nombre)}»</b> con todas sus aportaciones. Lo dejaréis de ver los dos.</p>`,
+        aceptar: "Sí, borrar", peligro: true
+      });
+      if (!ok) return;
+      await api(`/api/ahorros/objetivos/${o.id}`, { method: "DELETE" });
+      objetivos = objetivos.filter(x => x.id !== o.id);
+      pintarObjetivos();
+    });
+  });
+
+  /* ================= Vista "Mi plan" ================= */
+  // Ajustes que se ponen una vez (lo que tengo, lo que entra, fijos y apartados) y
+  // a partir de ellos se calculan solos los meses desde este en adelante.
+  const MESES_PLAN = 12;
+  const SEMANAS_MES = 52 / 12;
+  const COLORES_AP = ["var(--ap-1)", "var(--ap-2)", "var(--ap-3)", "var(--ap-4)", "var(--ap-5)"];
+  const colorAp = i => COLORES_AP[i % COLORES_AP.length];
+  let plan = null, apartados = [], vista = null, apartadosCargados = false, totales = {};
+  const colObjetivosMes = $("sec-objetivos").parentElement;
+
+  const totalSaldos = () => plan.saldos.reduce((s, x) => s + num(x.cantidad), 0);
+  const ingresoPlan = () => num(plan.ingresoMensual);
+  const subsEnUso = () => subs.filter(s => s.enUso);
+  const fijosMedia = () => subsEnUso().reduce((s, x) => s + num(x.costeMensual), 0);
+  const pctTotal = () => apartados.reduce((s, a) => s + num(a.porcentaje), 0);
+  const pctGuardado = () => apartados.filter(a => a.ahorro).reduce((s, a) => s + num(a.porcentaje), 0)
+                          + Math.max(0, 100 - pctTotal());   // lo que no se asigna, se queda
+
+  /** Lo que se cobra de verdad una suscripcion en un mes concreto (las trimestrales y anuales solo su mes). */
+  function cargoEnMes(s, mes) {
+    if (s.frecuencia === "MENSUAL") return num(s.precio);
+    const base = desdeIso(s.siguienteCobro);
+    const paso = s.frecuencia === "TRIMESTRAL" ? 3 : 12;
+    const dif = (mes.getFullYear() - base.getFullYear()) * 12 + mes.getMonth() - base.getMonth();
+    return ((dif % paso) + paso) % paso === 0 ? num(s.precio) : 0;
+  }
+
+  /**
+   * Los meses desde el actual (lo usan las dos vistas, asi dan las mismas cifras).
+   * Cada mes empieza con lo que dejo el anterior. Lo apuntado en "Mes a mes" manda sobre el plan:
+   * si ese mes hay ingresos apuntados se usan en vez del ingreso del plan, y si los gastos variables
+   * apuntados pasan de lo previsto para gastar, se resta lo apuntado.
+   */
+  function calcularMeses(cuantos = MESES_PLAN) {
+    const meses = [];
+    let saldo = totalSaldos();
+    for (let i = 0; i < cuantos; i++) {
+      const mes = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+      const real = totales[claveMes(mes)] || {};
+      const ingresoApuntado = real.ingresos !== null && real.ingresos !== undefined;
+      const ingreso = ingresoApuntado ? num(real.ingresos) : ingresoPlan();
+      const cobros = subsEnUso().map(s => ({ s, v: cargoEnMes(s, mes) })).filter(x => x.v > 0);
+      const fijos = cobros.reduce((t, x) => t + x.v, 0);
+      const libre = ingreso - fijos;
+      const partes = apartados.map(a => libre > 0 ? libre * num(a.porcentaje) / 100 : 0);
+      const previsto = libre > 0 ? libre * (100 - pctGuardado()) / 100 : 0;   // para gastar
+      const gastado = num(real.gastos);
+      const gastos = Math.max(previsto, gastado);
+      const guardas = libre - gastos;
+      const inicio = saldo;
+      saldo += guardas;
+      meses.push({ mes, clave: claveMes(mes), inicio, ingreso, ingresoApuntado, fijos, cobros, libre, partes,
+                   previsto, gastado, gastos, guardas, fin: saldo });
+    }
+    return meses;
+  }
+
+  function pintarPlanResumen(meses) {
+    const ingreso = ingresoPlan(), fijos = fijosMedia(), libre = ingreso - fijos;
+    const vacio = ingreso === 0 && plan.saldos.length === 0;
+    $("vista-plan").classList.toggle("ahorro-sin-datos", vacio);   // sin datos, los meses serian todo ceros: se ocultan
+    // Barra: a donde va lo que entra (fijos en gris, cada apartado con su color, lo no repartido vacio)
+    const tramos = ingreso > 0 ? [
+      `<i style="--c:var(--c-gris); width:${Math.min(100, fijos / ingreso * 100)}%" title="Gastos fijos"></i>`,
+      ...apartados.map((a, i) => `<i style="--c:${colorAp(i)}; width:${Math.max(0, libre) / ingreso * num(a.porcentaje)}%" title="${esc(a.nombre)}"></i>`)
+    ].join("") : "";
+    const finAnio = meses[meses.length - 1].fin;
+    $("plan-resumen").innerHTML = vacio ? `
+      <article class="tarjeta-dato empezar">
+        <header>${icono("hucha")}Empieza por tus ajustes</header>
+        <div class="sub">Pon lo que tienes ahora en cada cuenta y lo que te entra al mes. Con eso, Duo calcula solo los próximos meses.</div>
+      </article>` : `
+      <article class="tarjeta-dato">
+        <header>${icono("cartera")}Tienes ahora</header>
+        <div class="cifra">${euros(totalSaldos())}</div>
+        <div class="sub">Entre ${plan.saldos.length} ${plan.saldos.length === 1 ? "cuenta" : "cuentas"}</div>
+      </article>
+      <article class="tarjeta-dato">
+        <header>${icono("grafica")}Libre cada mes</header>
+        <div class="cifra ${libre < 0 ? "estado-malo" : ""}">${euros(libre)}</div>
+        <div class="sub">Entran <b>${euros(ingreso)}</b> · fijos <b>${euros(fijos)}</b> de media</div>
+        <div class="barra-reparto barra-flujo">${tramos}</div>
+      </article>
+      <article class="tarjeta-dato">
+        <header>${icono("hucha")}En un año tendrás</header>
+        <div class="cifra ${finAnio < totalSaldos() ? "estado-malo" : "estado-bueno"}">${euros(finAnio)}</div>
+        <div class="sub">${finAnio >= totalSaldos() ? "Ahorras" : "Pierdes"} <b>${euros(Math.abs(finAnio - totalSaldos()))}</b> en ${MESES_PLAN} meses siguiendo el plan</div>
+      </article>`;
+  }
+
+  function pintarSaldos() {
+    $("tengo-total").textContent = plan.saldos.length ? euros(totalSaldos()) : "";
+    $("lista-saldos").innerHTML = plan.saldos.map(s => `
+      <li><button type="button" class="fila-boton" data-saldo="${s.id}">
+        <span class="texto"><b>${esc(s.nombre)}</b><small>Actualizado ${fechaCorta(s.actualizado)}</small></span>
+        <span class="importe ${num(s.cantidad) < 0 ? "negativo" : ""}">${euros(s.cantidad)}</span>
+        ${icono("lapiz")}</button></li>`).join("")
+      || `<li class="vacia">Pon cuánto hay ahora en cada cuenta (nómina, ahorro, efectivo...).</li>`;
+  }
+
+  function pintarSubsPlan() {
+    $("plan-fijos-total").textContent = subs.length ? `${euros(fijosMedia())}/mes` : "";
+    $("plan-subs").innerHTML = subs.map(s => `
+      <li class="${s.enUso ? "" : "sin-uso"}">
+        <span class="texto"><b>${esc(s.nombre)}</b><small>${euros(s.precio)} ${FRECUENCIA[s.frecuencia] || ""}${s.frecuencia !== "MENSUAL" ? ` · ${euros(s.costeMensual)} al mes de media` : ""}</small></span>
+        <button class="interruptor" data-sub="${s.id}" aria-pressed="${s.enUso}" title="¿Lo uso?"><i></i></button>
+        <button class="borrar" data-borrar="suscripciones/${s.id}" aria-label="Borrar">${icono("papelera")}</button></li>`).join("")
+      || `<li class="vacia">Lo que pagas sí o sí: alquiler, transporte, gimnasio, suscripciones...</li>`;
+  }
+
+  function pintarApartados(soloCalculos = false) {
+    const libre = Math.max(0, ingresoPlan() - fijosMedia());
+    const total = pctTotal();
+    $("barra-apartados").innerHTML = apartados.map((a, i) => `<i style="--c:${colorAp(i)}; width:${num(a.porcentaje)}%"></i>`).join("");
+    if (!soloCalculos) {
+      $("apartados").innerHTML = apartados.map((a, i) => `
+        <div class="apartado" style="--c:${colorAp(i)}" data-i="${i}">
+          <i class="punto"></i>
+          <input class="ap-nombre" value="${esc(a.nombre)}" maxlength="30" aria-label="Nombre del apartado" required>
+          <button type="button" class="ap-hucha" aria-pressed="${a.ahorro}" title="${a.ahorro ? "Es para guardar" : "Es para gastar"}" aria-label="Es para guardar">${icono("hucha")}</button>
+          <span class="pct"><input class="ap-pct" type="number" min="0" max="100" step="1" inputmode="decimal" value="${num(a.porcentaje)}" aria-label="Porcentaje de ${esc(a.nombre)}"></span>
+          <span class="eur" data-eur="${i}"></span>
+          <button type="button" class="borrar" data-quitar-ap="${i}" aria-label="Quitar ${esc(a.nombre)}">${icono("papelera")}</button>
+          <input class="ap-rango" type="range" min="0" max="100" step="1" value="${num(a.porcentaje)}" aria-hidden="true" tabindex="-1">
+        </div>`).join("");
+    }
+    apartados.forEach((a, i) => {
+      const mes = libre * num(a.porcentaje) / 100;
+      const el = document.querySelector(`[data-eur="${i}"]`);
+      if (el) el.innerHTML = `${euros(mes)}<small>${a.ahorro ? "se guarda" : `${euros(mes / SEMANAS_MES)}/semana`}</small>`;
+    });
+    const sinAsignar = 100 - total;
+    $("apartados-estado").innerHTML = total > 100.001
+      ? `<span class="estado-malo">${total}% (te pasas)</span>`
+      : Math.abs(sinAsignar) < 0.001 ? `<span class="estado-bueno">100%</span>` : `${total}%`;
+    const guardas = libre * pctGuardado() / 100;
+    $("apartados-datos").innerHTML = `
+      ${sinAsignar > 0.001 ? `<dt>Sin repartir (se queda en la cuenta)</dt><dd>${euros(libre * sinAsignar / 100)}</dd>` : ""}
+      <dt>Guardas al mes</dt><dd class="estado-bueno">${euros(guardas)}</dd>
+      <dt>Para gastar al mes</dt><dd>${euros(libre - guardas)}</dd>`;
+    $("btn-apartado").hidden = apartados.length >= 12;
+  }
+
+  function pintarMeses(meses) {
+    const mayus = s => s.charAt(0).toUpperCase() + s.slice(1);
+    const nombre = d => `${mayus(MESES[d.getMonth()])}${d.getFullYear() !== hoy.getFullYear() ? " " + d.getFullYear() : ""}`;
+    $("plan-meses").innerHTML = meses.map((m, i) => {
+      const extra = m.cobros.filter(x => x.s.frecuencia !== "MENSUAL");
+      return `<details class="mes-plan" ${i === 0 ? "open" : ""}>
+        <summary>
+          <span class="nombre">${i === 0 ? "Este mes" : nombre(m.mes)}${i === 0 ? `<small>${nombre(m.mes)}</small>` : ""}</span>
+          <span class="variacion ${m.guardas < 0 ? "estado-malo" : "estado-bueno"}">${m.guardas >= 0 ? "+" : ""}${euros(m.guardas)}</span>
+          <span class="tendras"><small>Tendrás</small>${euros(m.fin)}</span>
+        </summary>
+        <dl class="datos detalle-mes">
+          <dt>Empiezas con</dt><dd>${euros(m.inicio)}</dd>
+          <dt>Entra${m.ingresoApuntado ? "<small>Lo apuntado en «Mes a mes»</small>" : ""}</dt><dd>+${euros(m.ingreso)}</dd>
+          <dt>Gastos fijos${extra.length ? `<small>Este mes también ${extra.map(x => esc(x.s.nombre)).join(", ")}</small>` : ""}</dt><dd>−${euros(m.fijos)}</dd>
+          ${apartados.map((a, j) => `<dt class="con-punto" style="--c:${colorAp(j)}">${esc(a.nombre)}${a.ahorro ? " <small>se guarda</small>" : ""}</dt><dd>${euros(m.partes[j])}</dd>`).join("")}
+          ${m.gastado > m.previsto + 0.004 ? `<dt class="estado-malo">Te has pasado gastando<small>Apuntado ${euros(m.gastado)} de ${euros(m.previsto)} previstos</small></dt><dd class="estado-malo">−${euros(m.gastado - m.previsto)}</dd>` : ""}
+          <dt class="total">Al final del mes</dt><dd class="total">${euros(m.fin)}</dd>
+        </dl>
+      </details>`;
+    }).join("");
+  }
+
+  /* ---- "Tu dinero" en la vista Mes a mes: mismas cuentas que "Mi plan" ---- */
+  function pintarTuDinero() {
+    const seccion = $("tu-dinero");
+    seccion.hidden = !plan;
+    if (!plan) return;
+    // Sin cuentas no hay de donde partir: se invita a ponerlas en "Mi plan"
+    const sinCuentas = plan.saldos.length === 0;
+    $("evolucion").hidden = sinCuentas;
+    if (sinCuentas) {
+      $("tu-dinero-sub").textContent = "";
+      $("dinero-mes").innerHTML = `
+        <div class="invitar-plan">
+          <span class="chip">${icono("hucha")}</span>
+          <p><b>¿Cuánto te quedará a fin de mes?</b>
+          Pon en «Mi plan» lo que tienes en cada cuenta y lo que te entra al mes, y aquí verás lo que te quedará cada mes y cómo va subiendo o bajando.</p>
+          <button type="button" class="btn primario" data-ir-plan>Ir a Mi plan</button>
+        </div>`;
+      return;
+    }
+    const meses = calcularMeses();
+    const k = meses.findIndex(m => m.clave === claveMes(mesVisto));
+    const mayus = s => s.charAt(0).toUpperCase() + s.slice(1);
+    $("tu-dinero-sub").textContent = "Con tus ajustes de «Mi plan»";
+
+    if (k < 0) {
+      $("dinero-mes").innerHTML = `<p class="ayuda-caja">${mesVisto < meses[0].mes
+        ? "Lo que tenías en meses pasados no se guarda: se calcula desde este mes."
+        : "Se calcula hasta dentro de un año."} Toca un mes de la gráfica para verlo.</p>`;
+    } else {
+      const m = meses[k];
+      const variacion = m.fin - m.inicio;
+      const nota = m.gastado > m.previsto + 0.004
+        ? `<small class="estado-malo">Te has pasado ${euros(m.gastado - m.previsto)} de lo previsto</small>`
+        : `<small>Llevas apuntados ${euros(m.gastado)} de ${euros(m.previsto)} previstos</small>`;
+      $("dinero-mes").innerHTML = `
+        <dl class="datos cuentas-mes">
+          <dt>${k === 0 ? "Tienes ahora" : "Empiezas el mes con"}</dt><dd>${euros(m.inicio)}</dd>
+          <dt>Entra<small>${m.ingresoApuntado ? "Lo apuntado este mes" : "Según tu plan (aún no has apuntado ingresos)"}</small></dt><dd>+${euros(m.ingreso)}</dd>
+          <dt>Gastos fijos</dt><dd>−${euros(m.fijos)}</dd>
+          <dt>Gastos variables${nota}</dt><dd>−${euros(m.gastos)}</dd>
+        </dl>
+        <div class="fin-mes">
+          <small>Te quedará a fin de mes</small>
+          <b>${euros(m.fin)}</b>
+          <span class="${variacion < 0 ? "estado-malo" : "estado-bueno"}">${variacion >= 0 ? "+" : "−"}${euros(Math.abs(variacion))} este mes</span>
+        </div>`;
+    }
+
+    // Grafica: lo que tendras al final de cada mes
+    const valores = meses.map(m => m.fin);
+    const min = Math.min(...valores, meses[0].inicio), max = Math.max(...valores, meses[0].inicio);
+    const alto = v => max - min < 0.01 ? 60 : 18 + (v - min) / (max - min) * 82;
+    $("evolucion").innerHTML = meses.map((m, i) => `
+      <button type="button" class="barra-mes ${i === k ? "actual" : ""} ${m.guardas < 0 ? "baja" : ""}" data-ir-mes="${m.clave}"
+              aria-label="${mayus(MESES[m.mes.getMonth()])}: ${euros(m.fin)}" aria-pressed="${i === k}">
+        <span class="valor">${i === k ? euros(m.fin) : ""}</span>
+        <i style="height:${alto(m.fin)}%"></i>
+        <small><span class="largo">${MESES[m.mes.getMonth()].slice(0, 3)}</span><span class="corto">${MESES[m.mes.getMonth()].charAt(0)}</span></small>
+      </button>`).join("");
+  }
+  $("dinero-mes").addEventListener("click", e => {
+    if (e.target.closest("[data-ir-plan]")) { ponerVista("PLAN", true); scrollTo({ top: 0, behavior: "smooth" }); }
+  });
+  $("evolucion").addEventListener("click", e => {
+    const b = e.target.closest("[data-ir-mes]"); if (!b) return;
+    mesVisto = desdeIso(b.dataset.irMes + "-01");
+    cambiarMes();
+  });
+
+  /* ---- Mis metas: tener X € para una fecha, ¿llego o no? ---- */
+  const nombreMesLargo = d => `${MESES[d.getMonth()]} ${d.getFullYear() !== hoy.getFullYear() ? d.getFullYear() : ""}`.trim();
+
+  /** Con el plan, cuanto tendre a final del mes de la meta y si llego. Margen de "por poco": 5 %. */
+  function evaluarMeta(m) {
+    const meta = num(m.cantidad), tienes = totalSaldos();
+    const fecha = desdeIso(m.fecha);
+    const n = Math.max(1, Math.min(121, (fecha.getFullYear() - hoy.getFullYear()) * 12 + fecha.getMonth() - hoy.getMonth() + 1));
+    const meses = calcularMeses(n);
+    const enFecha = meses[meses.length - 1].fin;
+    const alcanza = meses.find(x => x.fin >= meta);
+    const falta = meta - enFecha;
+    const sinDatos = ingresoPlan() === 0 && plan.saldos.length === 0;
+    let estado = sinDatos ? "sin-datos" : tienes >= meta ? "conseguida" : enFecha >= meta ? "bien" : enFecha >= meta * 0.95 ? "justo" : "no";
+    return { meta, tienes, fecha, n, enFecha, alcanza, falta, extraMes: Math.max(0, falta) / n, estado };
+  }
+
+  function pintarMetas() {
+    const lista = plan.metas || [];
+    $("plan-metas").innerHTML = lista.map(m => {
+      const e = evaluarMeta(m);
+      const pctAhora = Math.max(0, Math.min(100, e.tienes / e.meta * 100));
+      const pctFecha = Math.max(0, Math.min(100, e.enFecha / e.meta * 100));
+      const cuando = nombreMesLargo(e.fecha);
+      const textos = {
+        "sin-datos": ["Sin calcular", "Rellena tus ajustes (lo que tienes y lo que entra) para saber si llegas."],
+        conseguida: ["¡Conseguida!", `Ya tienes ${euros(e.tienes)}: ${euros(e.tienes - e.meta)} más de lo que querías.`],
+        bien: ["Vas bien", e.alcanza && e.alcanza.mes < new Date(e.fecha.getFullYear(), e.fecha.getMonth(), 1)
+          ? `La consigues en ${nombreMesLargo(e.alcanza.mes)}, antes de tiempo. A final de ${cuando} tendrás ${euros(e.enFecha)}, ${euros(e.enFecha - e.meta)} de margen.`
+          : `La consigues justo a tiempo: a final de ${cuando} tendrás ${euros(e.enFecha)}, ${euros(e.enFecha - e.meta)} de margen.`],
+        justo: ["Por poco", `A final de ${cuando} tendrás ${euros(e.enFecha)}: te faltarían ${euros(e.falta)}. Guarda ${euros(e.extraMes)} más al mes para asegurarla.`],
+        no: ["No llegas", `A final de ${cuando} tendrás ${euros(e.enFecha)}: te faltan ${euros(e.falta)}. Tendrías que guardar ${euros(e.extraMes)} más al mes.`]
+      }[e.estado];
+      return `<article class="meta meta-${e.estado}">
+        <button type="button" class="meta-cabeza" data-meta="${m.id}" aria-label="Cambiar la meta ${esc(m.nombre)}">
+          <span class="texto"><b>${esc(m.nombre)}</b><small>${euros(e.meta)} para ${fechaCorta(m.fecha)}${e.fecha.getFullYear() !== hoy.getFullYear() ? " " + e.fecha.getFullYear() : ""}</small></span>
+          <span class="estado-meta">${textos[0]}</span>
+          ${icono("lapiz")}
+        </button>
+        <div class="barra-meta" role="img" aria-label="Tienes ${euros(e.tienes)} de ${euros(e.meta)}; en la fecha tendrás ${euros(e.enFecha)}">
+          <i class="prevision" style="width:${pctFecha}%"></i><i class="ahora" style="width:${pctAhora}%"></i>
+        </div>
+        <div class="leyenda-meta"><span class="ahora">Ahora ${euros(e.tienes)}</span><span class="prevision">${cuando}: ${euros(e.enFecha)}</span></div>
+        <p>${textos[1]}</p>
+      </article>`;
+    }).join("") || `<p class="ayuda-caja metas-vacio">Ponte una meta con cantidad y fecha (un coche, un viaje, un colchón para imprevistos...) y Duo te dirá si llegas con tu plan.</p>`;
+  }
+  $("plan-metas").addEventListener("click", e => {
+    const b = e.target.closest("[data-meta]"); if (!b) return;
+    const m = plan.metas.find(x => String(x.id) === b.dataset.meta);
+    $("h-meta").textContent = "Cambiar meta";
+    $("me-id").value = m.id; $("me-nombre").value = m.nombre; $("me-cantidad").value = num(m.cantidad); $("me-fecha").value = m.fecha;
+    $("me-quitar").hidden = false;
+    $("hoja-meta").querySelector(".form-error").hidden = true;
+    $("hoja-meta").showModal();
+  });
+  $("me-quitar").onclick = () => intentar(async () => {
+    await api(`/api/ahorros/plan/metas/${$("me-id").value}`, { method: "DELETE" });
+    $("hoja-meta").close(); await recargar();
+  });
+  $("hoja-meta").addEventListener("close", () => {
+    $("form-meta").reset(); $("me-id").value = ""; $("me-quitar").hidden = true; $("h-meta").textContent = "Nueva meta";
+  });
+  $("me-fecha").min = iso(hoy);
+
+  function pintarPlan() {
+    if (!plan) return;
+    const ingreso = $("pl-ingreso");
+    if (document.activeElement !== ingreso) ingreso.value = ingresoPlan() || "";
+    const meses = calcularMeses();
+    pintarPlanResumen(meses); pintarSaldos(); pintarSubsPlan(); pintarApartados(); pintarMeses(meses); pintarMetas();
+  }
+  function repintarCalculos() {
+    const meses = calcularMeses();
+    pintarPlanResumen(meses); pintarApartados(true); pintarMeses(meses); pintarMetas();
+  }
+
+  // Lo que entra al mes: se guarda al dejar de escribir
+  let temporizadorIngreso;
+  $("pl-ingreso").addEventListener("input", e => {
+    const v = e.target.value === "" ? 0 : num(e.target.value);
+    if (v < 0) return;
+    plan.ingresoMensual = v;
+    pintarSubsPlan(); repintarCalculos();
+    clearTimeout(temporizadorIngreso);
+    temporizadorIngreso = setTimeout(() => intentar(async () => {
+      plan = await api("/api/ahorros/plan", { method: "PUT", body: JSON.stringify({ ingresoMensual: v }) });
+    }), 600);
+  });
+
+  // Apartados: se edita la lista en pantalla y se guarda entera
+  let temporizadorApartados;
+  function guardarApartados() {
+    clearTimeout(temporizadorApartados);
+    if (pctTotal() > 100.001 || apartados.some(a => !a.nombre.trim()) || !apartados.length) return;
+    temporizadorApartados = setTimeout(() => intentar(async () => {
+      await api("/api/ahorros/plan/apartados", { method: "PUT", body: JSON.stringify(apartados) });
+    }), 600);
+  }
+  $("apartados").addEventListener("input", e => {
+    const fila = e.target.closest("[data-i]"); if (!fila) return;
+    const a = apartados[Number(fila.dataset.i)];
+    if (e.target.classList.contains("ap-nombre")) {
+      a.nombre = e.target.value;
+      repintarCalculos();
+    } else if (e.target.classList.contains("ap-pct") || e.target.classList.contains("ap-rango")) {
+      a.porcentaje = Math.max(0, Math.min(100, num(e.target.value)));
+      fila.querySelector(e.target.classList.contains("ap-pct") ? ".ap-rango" : ".ap-pct").value = a.porcentaje;
+      repintarCalculos();
+    }
+    guardarApartados();
+  });
+  $("apartados").addEventListener("click", e => {
+    const hucha = e.target.closest(".ap-hucha");
+    const quitar = e.target.closest("[data-quitar-ap]");
+    if (hucha) {
+      const a = apartados[Number(hucha.closest("[data-i]").dataset.i)];
+      a.ahorro = !a.ahorro;
+      pintarApartados(); repintarCalculos(); guardarApartados();
+    } else if (quitar) {
+      if (apartados.length <= 1) { mostrarError("Deja al menos un apartado"); return; }
+      apartados.splice(Number(quitar.dataset.quitarAp), 1);
+      pintarApartados(); repintarCalculos(); guardarApartados();
+    }
+  });
+  $("btn-apartado").onclick = () => {
+    apartados.push({ nombre: "Nuevo apartado", porcentaje: Math.max(0, Math.min(10, 100 - pctTotal())), ahorro: false });
+    pintarApartados(); repintarCalculos(); guardarApartados();
+    const filas = document.querySelectorAll("#apartados .ap-nombre");
+    const ultima = filas[filas.length - 1]; ultima.focus(); ultima.select();
+  };
+
+  // Suscripciones desde "Mi plan": el interruptor "lo uso" igual que en "Mes a mes"
+  $("plan-subs").addEventListener("click", e => {
+    const b = e.target.closest("[data-sub]"); if (!b) return;
+    intentar(async () => {
+      const actual = subs.find(s => String(s.id) === b.dataset.sub);
+      const nueva = await api(`/api/ahorros/suscripciones/${actual.id}`, { method: "PATCH", body: JSON.stringify({ enUso: !actual.enUso }) });
+      subs = subs.map(s => s.id === nueva.id ? nueva : s);
+      pintarSubs(); pintarResumen(); pintarPlan();
+    });
+  });
+
+  // Lo que tengo: tocar una cuenta abre la hoja para cambiar lo que hay
+  $("lista-saldos").addEventListener("click", e => {
+    const b = e.target.closest("[data-saldo]"); if (!b) return;
+    const s = plan.saldos.find(x => String(x.id) === b.dataset.saldo);
+    $("h-saldo").textContent = "Actualizar cuenta";
+    $("sa-id").value = s.id; $("sa-nombre").value = s.nombre; $("sa-cantidad").value = num(s.cantidad);
+    $("sa-quitar").hidden = false;
+    $("hoja-saldo").querySelector(".form-error").hidden = true;
+    $("hoja-saldo").showModal();
+    $("sa-cantidad").focus(); $("sa-cantidad").select();
+  });
+  $("sa-quitar").onclick = () => intentar(async () => {
+    await api(`/api/ahorros/plan/saldos/${$("sa-id").value}`, { method: "DELETE" });
+    $("hoja-saldo").close(); await recargar();
+  });
+  $("hoja-saldo").addEventListener("close", () => {
+    $("form-saldo").reset(); $("sa-id").value = ""; $("sa-quitar").hidden = true; $("h-saldo").textContent = "Añadir cuenta";
+  });
+
+  // Cambiar de vista (se recuerda en el servidor, para el movil y el PC)
+  function ponerVista(v, guardar) {
+    vista = v;
+    const esPlan = v === "PLAN";
+    $("vista-plan").hidden = !esPlan; $("vista-mes").hidden = esPlan; $("selector-mes").hidden = esPlan;
+    document.querySelectorAll("#selector-vista [data-vista]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.vista === v)));
+    // Los objetivos juntos se ven en las dos vistas: se mueven a la que se esta viendo
+    (esPlan ? $("plan-col-derecha") : colObjetivosMes).appendChild($("sec-objetivos"));
+    if (esPlan) pintarPlan(); else pintarTuDinero();
+    if (guardar) intentar(async () => { await api("/api/ahorros/plan", { method: "PUT", body: JSON.stringify({ vista: v }) }); });
+  }
+  $("selector-vista").addEventListener("click", e => {
+    const b = e.target.closest("[data-vista]");
+    if (b && b.dataset.vista !== vista) ponerVista(b.dataset.vista, true);
+  });
+
+  /* ---------------- Borrar (ingresos, gastos, suscripciones, movimientos) ---------------- */
+  document.querySelector(".contenido").addEventListener("click", e => {
+    const b = e.target.closest("[data-borrar]"); if (!b) return;
+    intentar(async () => {
+      await api(`/api/ahorros/${b.dataset.borrar}`, { method: "DELETE" });
+      await recargar();
+    });
+  });
+
+  /* ---------------- Formularios ---------------- */
+  function enviar(formId, fn) {
+    $(formId).addEventListener("submit", e => {
+      e.preventDefault();
+      const boton = e.target.querySelector("[type=submit]");
+      boton.disabled = true;
+      intentar(async () => { await fn(e.target); e.target.closest("dialog")?.close(); await recargar(); })
+        .finally(() => boton.disabled = false);
+    });
+  }
+
+  /* ---------------- Hojas para añadir (como en iOS) ---------------- */
+  document.addEventListener("click", e => {
+    const abrir = e.target.closest("[data-hoja]");
+    if (abrir) {
+      const hoja = $(abrir.dataset.hoja);
+      hoja.querySelector(".form-error").hidden = true;
+      hoja.showModal();
+      hoja.querySelector("input:not([type=date]), input")?.focus();
+      return;
+    }
+    if (e.target.closest("[data-cerrar]")) e.target.closest("dialog").close();
+    else if (e.target.matches("dialog.hoja")) e.target.close();  // clic fuera de la hoja
+  });
+  enviar("form-ingreso", async f => {
+    await api(`/api/ahorros/mes/${claveMes(mesVisto)}/ingresos`, { method: "POST",
+      body: JSON.stringify({ concepto: $("in-concepto").value, importe: num($("in-importe").value) }) });
+    f.reset(); $("in-concepto").focus();
+  });
+  enviar("form-gasto", async f => {
+    await api("/api/ahorros/gastos", { method: "POST", body: JSON.stringify({
+      fecha: $("ga-fecha").value, categoria: $("ga-categoria").value, descripcion: $("ga-descripcion").value, importe: num($("ga-importe").value) }) });
+    const fecha = $("ga-fecha").value; f.reset(); $("ga-fecha").value = fecha; $("ga-categoria").focus();
+  });
+  enviar("form-sub", async f => {
+    await api("/api/ahorros/suscripciones", { method: "POST", body: JSON.stringify({
+      nombre: $("su-nombre").value, precio: num($("su-precio").value), frecuencia: $("su-frecuencia").value, cobro: $("su-cobro").value }) });
+    f.reset(); $("su-cobro").value = iso(hoy);
+  });
+  enviar("form-mov", async f => {
+    await api("/api/ahorros/movimientos", { method: "POST", body: JSON.stringify({
+      fecha: $("mo-fecha").value, cantidad: num($("mo-cantidad").value), cuenta: $("mo-cuenta").value }) });
+    const fecha = $("mo-fecha").value; f.reset(); $("mo-fecha").value = fecha;
+  });
+  enviar("form-meta", async () => {
+    const id = $("me-id").value;
+    const datos = JSON.stringify({ nombre: $("me-nombre").value, cantidad: num($("me-cantidad").value), fecha: $("me-fecha").value });
+    await api(id ? `/api/ahorros/plan/metas/${id}` : "/api/ahorros/plan/metas", { method: id ? "PUT" : "POST", body: datos });
+  });
+  enviar("form-saldo", async () => {
+    const id = $("sa-id").value;
+    const datos = JSON.stringify({ nombre: $("sa-nombre").value, cantidad: num($("sa-cantidad").value) });
+    await api(id ? `/api/ahorros/plan/saldos/${id}` : "/api/ahorros/plan/saldos", { method: id ? "PUT" : "POST", body: datos });
+  });
+  enviar("form-obj", async f => {
+    await api("/api/ahorros/objetivos", { method: "POST", body: JSON.stringify({
+      nombre: $("ob-nombre").value, meta: num($("ob-meta").value), fechaLimite: $("ob-fecha").value || null }) });
+    f.reset();
+  });
+
+  $("btn-copiar").onclick = () => intentar(async () => {
+    datosMes = await api(`/api/ahorros/mes/${claveMes(mesVisto)}/copiar`, { method: "POST", body: "{}" });
+    pintarTodo();
+  });
+
+  /* ---------------- Mes ---------------- */
+  function fechaPorDefecto() {
+    // Dentro del mes que se esta viendo: hoy si es el mes actual, si no el dia 1
+    return claveMes(mesVisto) === claveMes(hoy) ? iso(hoy) : iso(mesVisto);
+  }
+  $("mes-ant").onclick = () => { mesVisto = new Date(mesVisto.getFullYear(), mesVisto.getMonth() - 1, 1); cambiarMes(); };
+  $("mes-sig").onclick = () => { mesVisto = new Date(mesVisto.getFullYear(), mesVisto.getMonth() + 1, 1); cambiarMes(); };
+  function cambiarMes() {
+    $("ga-fecha").value = fechaPorDefecto(); $("mo-fecha").value = fechaPorDefecto();
+    intentar(recargar);
+  }
+
+  function pintarTodo() {
+    $("mes-nombre").textContent = nombreMes(mesVisto);
+    const anterior = datosMes.mesAnteriorConDatos;
+    $("aviso-copiar").hidden = !anterior;
+    if (anterior) $("aviso-copiar-texto").textContent = `Puedes empezar con los ingresos y el reparto de ${nombreMes(desdeIso(anterior + "-01"))}.`;
+    pintarIngresos(); pintarReparto(); pintarGastos(); pintarSubs(); pintarCuentas(); pintarObjetivos(); pintarResumen();
+    pintarPlan(); pintarTuDinero(); pintarBanco();
+  }
+
+  async function recargar() {
+    let listaTotales;
+    [datosMes, subs, movs, objetivos, plan, listaTotales, bancoEstado, bancoPendientes, bancoReglas] = await Promise.all([
+      api(`/api/ahorros/mes/${claveMes(mesVisto)}`),
+      api("/api/ahorros/suscripciones"),
+      api("/api/ahorros/movimientos"),
+      api("/api/ahorros/objetivos"),
+      api("/api/ahorros/plan"),
+      api(`/api/ahorros/totales?desde=${claveMes(hoy)}&meses=${MESES_PLAN}`),
+      api("/api/ahorros/banco/estado"),
+      api("/api/ahorros/banco/revisar"),
+      api("/api/ahorros/banco/reglas")
+    ]);
+    totales = Object.fromEntries(listaTotales.map(t => [t.mes, t]));
+    // Los apartados se editan en pantalla y se guardan solos: tras cargarlos una vez manda lo de la pantalla
+    if (!apartadosCargados) { apartados = plan.apartados.map(a => ({ ...a, porcentaje: num(a.porcentaje) })); apartadosCargados = true; }
+    if (vista === null) ponerVista(plan.vista, false);
+    pintarTodo();
+  }
+
+  $("ga-fecha").value = fechaPorDefecto(); $("mo-fecha").value = fechaPorDefecto(); $("su-cobro").value = iso(hoy);
+  intentar(recargar);
+})();

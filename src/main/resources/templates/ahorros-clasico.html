@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" data-modo="claro">
+<head th:replace="~{fragmentos :: cabeza('Ahorros')}"></head>
+<body th:class="${yo.username}"
+      th:data-yo="${yo.username}" th:data-yo-nombre="${yo.nombre}"
+      th:data-otro="${otro.username}" th:data-otro-nombre="${otro.nombre}">
+<link rel="stylesheet" th:href="@{/css/ahorros.css}">
+
+<th:block th:replace="~{fragmentos :: iconos}"></th:block>
+
+<div class="app">
+  <header th:replace="~{fragmentos :: cabecera('ahorros')}"></header>
+
+  <main class="contenido">
+
+  <!-- TITULAR + MES -->
+  <section class="titular">
+    <div>
+      <h1>Ahorros</h1>
+      <p class="sub"><svg class="ico" aria-hidden="true"><use href="#i-candado"/></svg>Tus finanzas son privadas; los objetivos juntos los veis los dos</p>
+    </div>
+    <div class="controles-titular">
+      <div class="segmentado" id="selector-vista" role="group" aria-label="Cómo ver tus ahorros">
+        <button type="button" data-vista="PLAN" aria-pressed="false">Mi plan</button>
+        <button type="button" data-vista="MES" aria-pressed="true">Mes a mes</button>
+      </div>
+      <div class="selector-mes" id="selector-mes">
+        <button class="btn redondo" id="mes-ant" aria-label="Mes anterior"><svg class="ico"><use href="#i-flecha-i"/></svg></button>
+        <b id="mes-nombre"></b>
+        <button class="btn redondo" id="mes-sig" aria-label="Mes siguiente"><svg class="ico"><use href="#i-flecha-d"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VISTA "MI PLAN": ajustes una vez y los meses se calculan solos ============ -->
+  <div id="vista-plan" hidden>
+    <section class="resumen" id="plan-resumen"></section>
+
+    <section class="grupo-r banco-panel" id="banco-seccion" aria-labelledby="banco-titulo" hidden>
+      <h2 class="titulo-grupo" id="banco-titulo">Banco <small>Conexión privada para esta cuenta de Duo</small></h2>
+      <div class="caja" id="banco-panel">
+        <p id="banco-mensaje" class="banco-mensaje">Comprobando conexión…</p>
+        <div class="banco-acciones">
+          <button type="button" class="btn primario" id="banco-conectar">Conectar banco</button>
+          <button type="button" class="btn" id="banco-sincronizar" hidden>Sincronizar ahora</button>
+          <button type="button" class="btn" id="banco-desconectar" hidden>Desconectar</button>
+        </div>
+        <p class="ayuda banco-aviso">Duo solo consulta movimientos y saldo. Nunca puede mover dinero ni recibe la contraseña de tu banco.</p>
+        <details class="banco-reglas">
+          <summary>Reglas para clasificar movimientos</summary>
+          <form id="banco-form-regla" class="banco-form-regla">
+            <input type="hidden" name="id">
+            <label>Si el concepto contiene<input name="contiene" maxlength="80" required placeholder="Ej. MERCADONA"></label>
+            <label>Acción<select name="accion"><option value="CATEGORIA">Asignar categoría</option><option value="FIJO">Gasto fijo</option><option value="IGNORAR">Ignorar (traspasos)</option></select></label>
+            <label class="banco-regla-categoria">Categoría<input name="categoria" maxlength="30" placeholder="Ej. Compra"></label>
+            <button class="btn" type="submit">Añadir regla</button>
+            <button class="btn" type="button" id="banco-cancelar-regla" hidden>Cancelar edición</button>
+          </form>
+          <ul id="banco-reglas-lista" class="banco-reglas-lista"></ul>
+        </details>
+      </div>
+    </section>
+
+    <div class="columnas">
+      <div class="columna">
+        <header class="cabeza-columna">
+          <h2>Tus ajustes</h2>
+          <p>Lo pones una vez y, con esto, los meses se rellenan solos.</p>
+        </header>
+
+        <section class="grupo-r" aria-labelledby="t-tengo">
+          <h2 class="titulo-grupo" id="t-tengo">Lo que tengo <small id="tengo-total"></small></h2>
+          <div class="caja">
+            <ul class="filas saldos" id="lista-saldos"></ul>
+            <button type="button" class="fila-anadir" data-hoja="hoja-saldo"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir cuenta</button>
+          </div>
+        </section>
+
+        <section class="grupo-r" aria-labelledby="t-entra">
+          <h2 class="titulo-grupo" id="t-entra">Lo que entra al mes</h2>
+          <div class="caja">
+            <div class="fila-dato">
+              <label for="pl-ingreso">Sueldo y otros ingresos<small>Lo que te llega limpio cada mes</small></label>
+              <span class="campo-euros"><input id="pl-ingreso" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"><span>€</span></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="grupo-r" aria-labelledby="t-fijos-plan">
+          <h2 class="titulo-grupo" id="t-fijos-plan">Gastos fijos <small id="plan-fijos-total"></small></h2>
+          <div class="caja">
+            <ul class="filas" id="plan-subs"></ul>
+            <button type="button" class="fila-anadir" data-hoja="hoja-sub"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir gasto fijo o suscripción</button>
+          </div>
+        </section>
+
+        <section class="grupo-r" aria-labelledby="t-apartados">
+          <h2 class="titulo-grupo" id="t-apartados">Cómo repartes lo libre <small id="apartados-estado"></small></h2>
+          <div class="caja">
+            <p class="ayuda-caja">Lo libre es lo que entra menos los gastos fijos. Marca con la hucha lo que es para guardar.</p>
+            <div class="barra-reparto" id="barra-apartados"></div>
+            <div class="apartados" id="apartados"></div>
+            <button type="button" class="fila-anadir" id="btn-apartado"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir apartado</button>
+            <dl class="datos" id="apartados-datos"></dl>
+          </div>
+        </section>
+      </div>
+
+      <div class="columna" id="plan-col-derecha">
+        <section class="grupo-r" aria-labelledby="t-metas" id="sec-metas">
+          <h2 class="titulo-grupo" id="t-metas">Mis metas <small>¿Llego o no?</small></h2>
+          <div class="caja">
+            <div class="metas" id="plan-metas"></div>
+            <button type="button" class="fila-anadir" data-hoja="hoja-meta"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Nueva meta</button>
+          </div>
+        </section>
+
+        <section class="grupo-r" aria-labelledby="t-meses" id="sec-meses">
+          <h2 class="titulo-grupo" id="t-meses">De este mes en adelante <small>Calculado con tus ajustes</small></h2>
+          <div class="caja">
+            <div class="meses-plan" id="plan-meses"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA "MES A MES" ============ -->
+  <div id="vista-mes">
+
+  <!-- AVISO: COPIAR MES ANTERIOR -->
+  <section class="aviso aviso-copiar" id="aviso-copiar" hidden>
+    <span class="chip"><svg class="ico"><use href="#i-copiar"/></svg></span>
+    <div>
+      <small>Mes nuevo</small>
+      <b>Este mes está vacío</b>
+      <span id="aviso-copiar-texto">Puedes empezar con los ingresos y el reparto del mes anterior.</span>
+    </div>
+    <div class="botones-aviso"><button class="btn primario" id="btn-copiar"><svg class="ico"><use href="#i-copiar"/></svg>Copiar</button></div>
+  </section>
+
+  <!-- TU DINERO: lo que tienes, lo que te quedara a fin de mes y como evoluciona (con los ajustes de "Mi plan") -->
+  <section class="grupo-r tu-dinero" id="tu-dinero" aria-labelledby="t-dinero" hidden>
+    <h2 class="titulo-grupo" id="t-dinero">Tu dinero <small id="tu-dinero-sub"></small></h2>
+    <div class="caja">
+      <div class="dinero-mes" id="dinero-mes"></div>
+      <div class="evolucion" id="evolucion" aria-label="Cómo evoluciona tu dinero mes a mes"></div>
+    </div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section class="resumen" id="resumen"></section>
+
+  <div class="columnas">
+    <div class="columna">
+      <!-- INGRESOS Y REPARTO: un solo grupo -->
+      <section class="grupo-r" aria-labelledby="t-mes">
+        <h2 class="titulo-grupo" id="t-mes">Dinero del mes <small id="ingresos-total"></small></h2>
+        <div class="caja">
+          <ul class="filas" id="lista-ingresos"></ul>
+          <button type="button" class="fila-anadir" data-hoja="hoja-ingreso"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir ingreso</button>
+          <div class="separador-grupo">
+            <h3 class="subtitulo-grupo">Reparto <small id="reparto-estado"></small></h3>
+            <div class="barra-reparto" id="barra-reparto"></div>
+            <div class="reparto" id="reparto"></div>
+            <dl class="datos" id="reparto-datos"></dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- GASTOS VARIABLES -->
+      <section class="grupo-r" aria-labelledby="t-gastos">
+        <h2 class="titulo-grupo" id="t-gastos">Gastos variables <small id="gastos-total"></small></h2>
+        <div class="caja">
+          <div class="medidor" id="medidor-gastos"></div>
+          <div class="categorias" id="por-categoria"></div>
+          <ul class="filas" id="lista-gastos"></ul>
+          <section class="banco-revision" id="banco-revision" hidden aria-label="Movimientos bancarios por revisar">
+            <h3>Por revisar <small id="banco-revision-total"></small></h3>
+            <div id="banco-revision-lista"></div>
+          </section>
+          <button type="button" class="fila-anadir" data-hoja="hoja-gasto"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir gasto</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="columna">
+      <!-- SUSCRIPCIONES -->
+      <section class="grupo-r" aria-labelledby="t-subs">
+        <h2 class="titulo-grupo" id="t-subs">Gastos fijos <small id="subs-total"></small></h2>
+        <div class="caja">
+          <p class="consejo" id="subs-consejo" hidden></p>
+          <ul class="filas subs" id="lista-subs"></ul>
+          <button type="button" class="fila-anadir" data-hoja="hoja-sub"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Añadir gasto fijo o suscripción</button>
+        </div>
+      </section>
+
+      <!-- CUENTAS DE AHORRO -->
+      <section class="grupo-r" aria-labelledby="t-cuentas">
+        <h2 class="titulo-grupo" id="t-cuentas">Cuentas de ahorro <small id="cuentas-total"></small></h2>
+        <div class="caja">
+          <div class="cuentas" id="cuentas"></div>
+          <ul class="filas" id="lista-movs"></ul>
+          <button type="button" class="fila-anadir" data-hoja="hoja-mov"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Apuntar movimiento</button>
+        </div>
+      </section>
+
+      <!-- OBJETIVOS EN COMUN (se mueve a la vista "Mi plan" cuando se elige) -->
+      <section class="grupo-r" aria-labelledby="t-obj" id="sec-objetivos">
+        <h2 class="titulo-grupo" id="t-obj">Objetivos juntos <small>Los veis los dos</small></h2>
+        <div class="caja">
+          <div class="objetivos" id="objetivos"></div>
+          <button type="button" class="fila-anadir" data-hoja="hoja-obj"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Nuevo objetivo</button>
+        </div>
+      </section>
+    </div>
+  </div>
+  </div><!-- /vista-mes -->
+
+  <!-- HOJAS PARA AÑADIR (como en iOS): los formularios conservan sus ids -->
+  <dialog class="perfil hoja" id="hoja-meta" aria-labelledby="h-meta">
+    <form id="form-meta">
+      <h3 id="h-meta">Nueva meta</h3>
+      <div class="campo"><label for="me-nombre">Qué quieres conseguir</label><input id="me-nombre" placeholder="Ej. Coche, viaje a Japón, colchón" maxlength="40" required></div>
+      <div class="fila">
+        <div class="campo"><label for="me-cantidad">Cuánto (€)</label><input id="me-cantidad" type="number" step="0.01" min="1" inputmode="decimal" required></div>
+        <div class="campo"><label for="me-fecha">Para cuándo</label><input id="me-fecha" type="date" required></div>
+      </div>
+      <p class="ayuda">Cuenta todo tu dinero: lo que tienes en tus cuentas más lo que vas ahorrando con tu plan.</p>
+      <input type="hidden" id="me-id">
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones">
+        <button type="button" class="btn quitar-saldo" id="me-quitar" hidden>Quitar</button>
+        <button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-saldo" aria-labelledby="h-saldo">
+    <form id="form-saldo">
+      <h3 id="h-saldo">Añadir cuenta</h3>
+      <div class="campo"><label for="sa-nombre">Cuenta</label><input id="sa-nombre" placeholder="Ej. Cuenta nómina, Trade, efectivo" maxlength="40" required></div>
+      <div class="campo"><label for="sa-cantidad">Lo que hay ahora (€)</label><input id="sa-cantidad" type="number" step="0.01" inputmode="decimal" required></div>
+      <p class="ayuda">En negativo si es una deuda (por ejemplo, una tarjeta de crédito).</p>
+      <input type="hidden" id="sa-id">
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones">
+        <button type="button" class="btn quitar-saldo" id="sa-quitar" hidden>Quitar</button>
+        <button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-ingreso" aria-labelledby="h-ingreso">
+    <form id="form-ingreso">
+      <h3 id="h-ingreso">Añadir ingreso</h3>
+      <div class="campo"><label for="in-concepto">Concepto</label><input id="in-concepto" placeholder="Ej. Sueldo" maxlength="60" required></div>
+      <div class="campo"><label for="in-importe">Importe (€)</label><input id="in-importe" type="number" step="0.01" min="0.01" inputmode="decimal" required></div>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Añadir</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-gasto" aria-labelledby="h-gasto">
+    <form id="form-gasto">
+      <h3 id="h-gasto">Añadir gasto</h3>
+      <div class="fila">
+        <div class="campo"><label for="ga-importe">Importe (€)</label><input id="ga-importe" type="number" step="0.01" min="0.01" inputmode="decimal" required></div>
+        <div class="campo"><label for="ga-fecha">Fecha</label><input id="ga-fecha" type="date" required></div>
+      </div>
+      <div class="campo"><label for="ga-categoria">Categoría</label><input id="ga-categoria" list="categorias" placeholder="Ej. Comida" maxlength="30" required></div>
+      <div class="campo"><label for="ga-descripcion">Descripción <small>(opcional)</small></label><input id="ga-descripcion" maxlength="80"></div>
+      <datalist id="categorias"></datalist>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Añadir</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-sub" aria-labelledby="h-sub">
+    <form id="form-sub">
+      <h3 id="h-sub">Añadir gasto fijo</h3>
+      <div class="campo"><label for="su-nombre">Nombre</label><input id="su-nombre" placeholder="Ej. Netflix" maxlength="40" required></div>
+      <div class="fila">
+        <div class="campo"><label for="su-precio">Precio (€)</label><input id="su-precio" type="number" step="0.01" min="0" inputmode="decimal" required></div>
+        <div class="campo"><label for="su-frecuencia">Cada cuánto</label>
+          <select id="su-frecuencia">
+            <option value="MENSUAL">Mensual</option>
+            <option value="TRIMESTRAL">Trimestral</option>
+            <option value="ANUAL">Anual</option>
+          </select></div>
+      </div>
+      <div class="campo"><label for="su-cobro">Día de cobro</label><input id="su-cobro" type="date" required></div>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Añadir</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-mov" aria-labelledby="h-mov">
+    <form id="form-mov">
+      <h3 id="h-mov">Apuntar movimiento</h3>
+      <div class="campo"><label for="mo-cuenta">Cuenta</label><input id="mo-cuenta" list="lista-cuentas" placeholder="Ej. Cuenta Trade" maxlength="40" required></div>
+      <div class="fila">
+        <div class="campo"><label for="mo-cantidad">Cantidad (€)</label><input id="mo-cantidad" type="number" step="0.01" inputmode="decimal" required></div>
+        <div class="campo"><label for="mo-fecha">Fecha</label><input id="mo-fecha" type="date" required></div>
+      </div>
+      <p class="ayuda">En negativo si sacas dinero.</p>
+      <datalist id="lista-cuentas"></datalist>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Apuntar</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="perfil hoja" id="hoja-obj" aria-labelledby="h-obj">
+    <form id="form-obj">
+      <h3 id="h-obj">Nuevo objetivo juntos</h3>
+      <div class="campo"><label for="ob-nombre">Nombre</label><input id="ob-nombre" placeholder="Ej. Viaje a Roma" maxlength="40" required></div>
+      <div class="fila">
+        <div class="campo"><label for="ob-meta">Meta (€)</label><input id="ob-meta" type="number" step="0.01" min="1" inputmode="decimal" required></div>
+        <div class="campo"><label for="ob-fecha">Fecha límite <small>(opcional)</small></label><input id="ob-fecha" type="date"></div>
+      </div>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Crear</button></div>
+    </form>
+  </dialog>
+
+  <p class="form-error error-flotante" id="error" role="alert" hidden></p>
+  </main>
+</div>
+
+<script th:src="@{/js/comun.js}"></script>
+<script th:src="@{/js/ahorros-clasico.js}"></script>
+</body>
+</html>

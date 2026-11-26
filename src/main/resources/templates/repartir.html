@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" data-modo="claro">
+<head th:replace="~{fragmentos :: cabeza('Repartir')}"></head>
+<body th:class="${yo.username}"
+      th:data-yo="${yo.username}" th:data-yo-nombre="${yo.nombre}"
+      th:data-otro="${otro.username}" th:data-otro-nombre="${otro.nombre}">
+<link rel="stylesheet" th:href="@{/css/ahorros.css}">
+<link rel="stylesheet" th:href="@{/css/repartir.css}">
+
+<th:block th:replace="~{fragmentos :: iconos}"></th:block>
+
+<div class="app">
+  <header th:replace="~{fragmentos :: cabecera('repartir')}"></header>
+
+  <main class="contenido">
+    <section class="titular">
+      <div>
+        <h1>Repartir</h1>
+        <p class="sub">Apuntad quién pagó qué y Duo os dice quién debe a quién</p>
+      </div>
+      <a class="btn primario" href="#nueva"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Nueva quedada</a>
+    </section>
+
+    <div class="repartir" id="repartir">
+      <!-- VISTA 1: TODAS LAS QUEDADAS (lista + lateral) -->
+      <div class="col-quedadas" id="vista-lista">
+        <section class="grupo-r" id="g-pendientes" aria-labelledby="t-pendientes">
+          <h2 class="titulo-grupo" id="t-pendientes">Pendientes <small id="n-pendientes"></small></h2>
+          <div class="caja caja-filas"><ul class="filas quedadas" id="lista-pendientes"><li class="cargando"></li></ul></div>
+        </section>
+        <section class="grupo-r" id="g-saldadas" aria-labelledby="t-saldadas" hidden>
+          <h2 class="titulo-grupo" id="t-saldadas">Saldadas <small id="n-saldadas"></small></h2>
+          <div class="caja caja-filas"><ul class="filas quedadas" id="lista-saldadas"></ul></div>
+        </section>
+        <section class="caja vacio-q" id="vacio" hidden>
+          <span class="tipo-ico grande" aria-hidden="true"><svg class="ico"><use href="#i-dividir"/></svg></span>
+          <h2>Aún no hay quedadas</h2>
+          <p>La próxima vez que salgáis con amigos y cada uno pague algo, cread la quedada y apuntad los gastos. Duo calcula los Bizums.</p>
+          <a class="btn primario" href="#nueva"><svg class="ico" aria-hidden="true"><use href="#i-mas"/></svg>Nueva quedada</a>
+        </section>
+      </div>
+
+      <!-- LATERAL DE LA LISTA: tus cuentas, con cada uno y el año -->
+      <aside class="lateral-q" id="lateral" aria-label="Tus cuentas">
+        <section class="grupo-r" aria-labelledby="t-cuentas">
+          <h2 class="titulo-grupo" id="t-cuentas">Tus cuentas</h2>
+          <div class="resumen balance" id="balance"></div>
+        </section>
+        <section class="grupo-r" aria-labelledby="t-cada">
+          <h2 class="titulo-grupo" id="t-cada">Con cada uno</h2>
+          <div class="caja caja-filas"><ul class="filas con-cada" id="con-cada"></ul></div>
+        </section>
+        <section class="grupo-r" aria-labelledby="t-anio">
+          <h2 class="titulo-grupo" id="t-anio">Este año</h2>
+          <div class="caja caja-filas"><dl class="datos-anio" id="anio"></dl></div>
+        </section>
+      </aside>
+
+      <!-- VISTA 2: UNA QUEDADA (la pinta repartir.js) -->
+      <div class="col-detalle" id="detalle" aria-live="polite"></div>
+
+      <!-- VISTA 3: NUEVA QUEDADA -->
+      <form class="vista-crear" id="form-quedada" novalidate>
+        <div class="cab-quedada">
+          <div class="cab-texto">
+            <a class="volver" href="#"><svg class="ico" aria-hidden="true"><use href="#i-flecha-i"/></svg>Quedadas</a>
+            <h1>Nueva quedada</h1>
+            <p id="cr-resumen">Ponle nombre y marca quién vino</p>
+          </div>
+          <div class="acciones-q">
+            <a class="btn" href="#">Cancelar</a>
+            <button class="btn primario" type="submit" id="cr-crear"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Crear quedada</button>
+          </div>
+        </div>
+        <p class="form-error" id="cr-error" role="alert" hidden></p>
+
+        <div class="det-cols">
+          <div class="det-col">
+            <section class="grupo-r" aria-labelledby="t-que">
+              <h2 class="titulo-grupo" id="t-que">Qué es</h2>
+              <div class="caja">
+                <div class="campo">
+                  <label for="qu-nombre">Nombre</label>
+                  <input id="qu-nombre" class="campo-grande" placeholder="Ej. Bolera del sábado" maxlength="60" autocomplete="off" required>
+                </div>
+                <div class="campo">
+                  <span class="etiqueta" id="qu-tipo-t">Tipo de plan</span>
+                  <div class="tipos" id="qu-tipo" role="radiogroup" aria-labelledby="qu-tipo-t">
+                    <button type="button" role="radio" aria-checked="false" data-tipo="COMIDA"><span class="tipo-ico"><svg class="ico"><use href="#i-cuenco"/></svg></span>Comida</button>
+                    <button type="button" role="radio" aria-checked="false" data-tipo="COPAS"><span class="tipo-ico"><svg class="ico"><use href="#i-copa"/></svg></span>Copas</button>
+                    <button type="button" role="radio" aria-checked="false" data-tipo="OCIO"><span class="tipo-ico"><svg class="ico"><use href="#i-diana"/></svg></span>Ocio</button>
+                    <button type="button" role="radio" aria-checked="false" data-tipo="VIAJE"><span class="tipo-ico"><svg class="ico"><use href="#i-maletin"/></svg></span>Viaje</button>
+                    <button type="button" role="radio" aria-checked="false" data-tipo="FIESTA"><span class="tipo-ico"><svg class="ico"><use href="#i-musica"/></svg></span>Fiesta</button>
+                    <button type="button" role="radio" aria-checked="false" data-tipo="REGALO"><span class="tipo-ico"><svg class="ico"><use href="#i-regalo"/></svg></span>Regalo</button>
+                    <button type="button" role="radio" aria-checked="true" data-tipo="OTRO"><span class="tipo-ico"><svg class="ico"><use href="#i-dividir"/></svg></span>Otro</button>
+                  </div>
+                </div>
+                <div class="campo campo-fecha-q">
+                  <label for="qu-fecha">Fecha</label>
+                  <input id="qu-fecha" type="date" required>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="det-col">
+            <section class="grupo-r" aria-labelledby="t-quien">
+              <h2 class="titulo-grupo" id="t-quien">Quiénes vinieron <small id="qu-cuenta"></small></h2>
+              <div class="caja caja-filas">
+                <ul class="filas gente" id="qu-personas" role="group" aria-labelledby="t-quien"></ul>
+                <div class="fila-nueva">
+                  <label for="qu-nueva" class="sr-solo">Añadir a alguien más</label>
+                  <span class="cara neutra" aria-hidden="true"><svg class="ico"><use href="#i-mas"/></svg></span>
+                  <input id="qu-nueva" placeholder="Añadir a alguien más" maxlength="30" autocomplete="off">
+                  <button type="button" class="btn" id="qu-anadir">Añadir</button>
+                </div>
+              </div>
+              <p class="nota-grupo">Toca para marcar o desmarcar. Podréis añadir o quitar gente después.</p>
+            </section>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- HOJA: GASTO (nuevo o editar) -->
+    <dialog class="perfil hoja" id="hoja-gasto" aria-labelledby="h-gasto">
+      <form id="form-gasto">
+        <h3 id="h-gasto">Añadir gasto</h3>
+        <div class="fila">
+          <div class="campo"><label for="ga-concepto">Qué se pagó</label><input id="ga-concepto" placeholder="Ej. 1ª ronda de cervezas" maxlength="60" required></div>
+          <div class="campo"><label for="ga-importe">Importe (€)</label><input id="ga-importe" type="number" step="0.01" min="0.01" inputmode="decimal" required></div>
+        </div>
+        <div class="campo">
+          <span class="etiqueta" id="ga-pagador-t">Lo pagó</span>
+          <div class="opciones" id="ga-pagador" role="radiogroup" aria-labelledby="ga-pagador-t"></div>
+        </div>
+        <div class="campo">
+          <span class="etiqueta" id="ga-entre-t">Se reparte entre</span>
+          <div class="opciones" id="ga-entre" role="group" aria-labelledby="ga-entre-t"></div>
+          <p class="ayuda" id="ga-cada-uno">Quita a quien no participó.</p>
+        </div>
+        <p class="form-error" role="alert" hidden></p>
+        <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit" id="ga-guardar">Añadir</button></div>
+      </form>
+    </dialog>
+
+    <!-- HOJA: AÑADIR PERSONA A LA QUEDADA -->
+    <dialog class="perfil hoja" id="hoja-persona" aria-labelledby="h-persona">
+      <form id="form-persona">
+        <h3 id="h-persona">Añadir persona</h3>
+        <div class="campo"><label for="pe-nombre">Nombre</label><input id="pe-nombre" list="personas-conocidas" placeholder="Ej. Nora" maxlength="30" required autocomplete="off"></div>
+        <datalist id="personas-conocidas"></datalist>
+        <p class="form-error" role="alert" hidden></p>
+        <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" type="submit">Añadir</button></div>
+      </form>
+    </dialog>
+
+    <!-- HOJA: COMPROBAR UN BIZUM CON UN MOVIMIENTO DEL BANCO -->
+    <dialog class="perfil hoja hoja-banco" id="hoja-banco" aria-labelledby="h-banco">
+      <form id="form-banco" method="dialog">
+        <h3 id="h-banco">¿Qué movimiento del banco es?</h3>
+        <p class="ayuda" id="hb-texto"></p>
+        <div class="hb-lista" id="hb-lista"></div>
+        <p class="form-error" role="alert" hidden></p>
+        <div class="confirmar-botones"><button type="button" class="btn" data-cerrar>Cancelar</button></div>
+      </form>
+    </dialog>
+
+    <p class="form-error error-flotante" id="error" role="alert" hidden></p>
+    <p class="aviso-ok" id="aviso-ok" role="status" hidden></p>
+  </main>
+</div>
+
+<script th:src="@{/js/comun.js}"></script>
+<script th:src="@{/js/repartir.js}"></script>
+</body>
+</html>

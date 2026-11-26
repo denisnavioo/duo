@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Duo · ¿Quién eres?</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/duo.css}">
+</head>
+<body class="centrado">
+<main class="tarjeta" aria-labelledby="titulo-entrar">
+    <img class="logo" th:src="@{/logo-duo.svg}" alt="Duo" width="148" height="42">
+    <h1 id="titulo-entrar">¿Quién eres?</h1>
+    <p class="subtitulo">Vuestra semana, juntos.</p>
+
+    <form class="elegir-persona" th:action="@{/entrar}" method="post">
+        <button th:each="p, i : ${personas}" type="submit" name="quien" th:value="${p.username}"
+                th:class="|persona ${p.username}|">
+            <span class="persona-inicial" aria-hidden="true" th:text="${p.inicial}">A</span>
+            <span th:text="${p.nombre}">Ana</span>
+        </button>
+    </form>
+</main>
+</body>
+</html>

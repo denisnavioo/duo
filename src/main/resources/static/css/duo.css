@@ -1,0 +1,189 @@
+/* Duo · acceso */
+:root {
+    color-scheme: light dark;
+    --fondo: #f5f5f7;
+    --superficie: #fff;
+    --campo: #f2f2f5;
+    --texto: #1d1d1f;
+    --suave: #626268;
+    --acento: #0066d6;
+    --c-juntos: #af52de;
+    --peligro: #b00020;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fondo: #000;
+        --superficie: #1c1c1e;
+        --campo: #2c2c2e;
+        --texto: #f5f5f7;
+        --suave: #b5b5bb;
+        --acento: #0a84ff;
+        --c-juntos: #bf5af2;
+        --peligro: #ff6961;
+    }
+
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    background: var(--fondo);
+    color: var(--texto);
+}
+
+::selection { background: rgba(0, 102, 214, .22); }
+
+.centrado {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+
+.tarjeta {
+    width: min(100%, 400px);
+    padding: 38px clamp(24px, 7vw, 40px) 34px;
+    border-radius: 14px;
+    background: var(--superficie);
+}
+
+.logo {
+    display: block;
+    width: 148px;
+    height: 42px;
+    margin: 0 auto 27px;
+}
+
+.enlaces-legales { display: flex; justify-content: center; gap: 18px; margin-top: 22px; font-size: .82rem; }
+.enlaces-legales a { color: var(--suave); text-underline-offset: 3px; }
+
+h1 {
+    margin: 0;
+    text-align: center;
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    line-height: 1.2;
+    letter-spacing: -.035em;
+    font-weight: 700;
+}
+
+.subtitulo {
+    margin: 9px 0 27px;
+    color: var(--suave);
+    text-align: center;
+}
+
+form { display: flex; flex-direction: column; }
+
+label {
+    display: block;
+    margin: 15px 0 7px;
+    color: var(--suave);
+    font-size: .8125rem;
+    font-weight: 600;
+}
+
+input {
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 13px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    outline: none;
+    background: var(--campo);
+    color: var(--texto);
+    font: inherit;
+}
+
+input:focus-visible {
+    border-color: var(--acento);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 20%, transparent);
+}
+
+button {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 25px;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--acento);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover { filter: brightness(1.08); }
+button:active { filter: brightness(.94); }
+button:focus-visible { outline: 3px solid color-mix(in srgb, var(--acento) 48%, transparent); outline-offset: 3px; }
+
+.aviso {
+    margin: 0 0 12px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    background: var(--campo);
+    font-size: .875rem;
+}
+
+.aviso.error {
+    color: var(--peligro);
+    background: color-mix(in srgb, var(--peligro) 10%, var(--superficie));
+}
+
+@media (max-width: 420px) {
+    .centrado { padding-inline: 14px; }
+    .tarjeta { padding-top: 32px; padding-bottom: 28px; }
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #050507;
+        background-image:
+            radial-gradient(ellipse 34rem 36rem at -5% 39%, color-mix(in srgb, var(--c-juntos) 52%, transparent), transparent 72%),
+            radial-gradient(ellipse 31rem 25rem at 24% 106%, color-mix(in srgb, var(--c-juntos) 43%, transparent), transparent 72%),
+            radial-gradient(ellipse 26rem 24rem at 103% 76%, color-mix(in srgb, var(--c-juntos) 32%, transparent), transparent 73%),
+            linear-gradient(115deg, #050507 17%, #0b0811 52%, #050507 91%);
+        background-attachment: fixed;
+    }
+
+    .tarjeta { background: color-mix(in srgb, var(--superficie) 78%, transparent); }
+}
+
+@media (max-height: 560px) {
+    .centrado { place-items: start center; }
+}
+
+/* Igual que en app.css: 16 px en los campos para que el iPhone no amplie la pagina al tocarlos */
+@media (pointer: coarse) {
+    input { font-size: max(16px, 1em) !important; }
+}
+
+/* Color (repaso 2026-11-23): el acceso ya lleva los colores de los dos.
+   Azul de persona A arriba a la izquierda, violeta juntos en medio, rosa de persona B abajo a la derecha. */
+:root { --c-a: #007aff; --c-b: #ec3b8f; --tinte: 16%; }
+@media (prefers-color-scheme: dark) { :root { --c-a: #0a84ff; --c-b: #ff5ca8; --tinte: 24%; } }
+body {
+    background-color: var(--fondo);
+    background-image:
+        radial-gradient(70vmax 60vmax at 0% 0%, color-mix(in srgb, var(--c-a) var(--tinte), transparent), transparent 70%),
+        radial-gradient(60vmax 50vmax at 55% 45%, color-mix(in srgb, var(--c-juntos) calc(var(--tinte) * .6), transparent), transparent 70%),
+        radial-gradient(70vmax 60vmax at 100% 100%, color-mix(in srgb, var(--c-b) var(--tinte), transparent), transparent 70%);
+    background-attachment: fixed;
+    caret-color: var(--acento);
+}
+.tarjeta { box-shadow: 0 24px 60px -30px rgba(40, 20, 80, .45); }
+
+/* «¿Quién eres?»: un botón grande por persona, con su color */
+.elegir-persona { display: grid; gap: 12px; margin-top: 24px; }
+.elegir-persona .persona { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border-radius: 14px; font-size: 1.0625rem; font-weight: 600; text-align: left; }
+.elegir-persona .persona.persona-a { background: var(--c-a); }
+.elegir-persona .persona.persona-b { background: var(--c-b); }
+.persona-inicial { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(255, 255, 255, .25); font-weight: 700; }

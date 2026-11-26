@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" data-modo="claro">
+<head th:replace="~{fragmentos :: cabeza('Horarios')}"></head>
+<body th:class="${yo.username}"
+      th:data-yo="${yo.username}" th:data-yo-nombre="${yo.nombre}"
+      th:data-otro="${otro.username}" th:data-otro-nombre="${otro.nombre}">
+<link rel="stylesheet" th:href="@{/css/horarios.css}">
+
+<th:block th:replace="~{fragmentos :: iconos}"></th:block>
+
+<div class="app">
+  <header th:replace="~{fragmentos :: cabecera('horarios')}"></header>
+
+  <main class="contenido">
+
+  <section class="titular">
+    <div>
+      <h1>Horarios</h1>
+      <p class="sub">Clases, trabajo y prácticas de cada semana</p>
+    </div>
+    <div class="segmentado vista-horario" id="vista">
+      <button aria-pressed="true" th:data-v="${yo.username}" th:text="|Mi horario|">Mi horario</button>
+      <button aria-pressed="false" th:data-v="${otro.username}" th:text="${otro.nombre}">Otro</button>    </div>
+  </section>
+
+  <section class="resumen-horas" id="resumen-horas"></section>
+
+  <div class="cuerpo-horario">
+    <section class="caja rejilla-caja">
+      <div class="rejilla-horario" id="rejilla"></div>
+      <div class="lista-horario" id="lista"></div>
+    </section>
+
+    <aside class="lateral">
+      <!-- Anadir / editar un bloque (solo en tu horario) -->
+      <form class="caja" id="form-bloque">
+        <h2 id="form-titulo">Añadir a mi horario</h2>
+        <div class="campo">
+          <label>Días</label>
+          <div class="dias-chips" id="f-dias">
+            <button type="button" data-d="1" aria-pressed="false">L</button>
+            <button type="button" data-d="2" aria-pressed="false">M</button>
+            <button type="button" data-d="3" aria-pressed="false">X</button>
+            <button type="button" data-d="4" aria-pressed="false">J</button>
+            <button type="button" data-d="5" aria-pressed="false">V</button>
+            <button type="button" data-d="6" aria-pressed="false">S</button>
+            <button type="button" data-d="7" aria-pressed="false">D</button>
+          </div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label for="f-inicio">Empieza</label><input id="f-inicio" type="time" value="09:00" required></div>
+          <div class="campo"><label for="f-fin">Acaba</label><input id="f-fin" type="time" value="10:00" required></div>
+        </div>
+        <div class="campo">
+          <label for="f-tipo">Tipo</label>
+          <select id="f-tipo">
+            <option value="CLASE">Clase</option>
+            <option value="PRACTICAS">Prácticas</option>
+            <option value="TRABAJO">Trabajo</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
+        <div class="campo"><label for="f-titulo">Título</label><input id="f-titulo" maxlength="40" placeholder="Ej. Programación" required></div>
+        <div class="fila">
+          <div class="campo"><label for="f-detalle">Detalle / empresa <small>(opcional)</small></label><input id="f-detalle" maxlength="60"></div>
+          <div class="campo"><label for="f-lugar">Aula / sitio <small>(opcional)</small></label><input id="f-lugar" maxlength="30"></div>
+        </div>
+        <button class="btn primario" type="submit" id="f-guardar"><svg class="ico"><use href="#i-mas"/></svg>Añadir</button>
+        <div class="fila acciones-edicion" id="acciones-edicion" hidden>
+          <button type="button" class="btn" id="f-cancelar">Cancelar</button>
+          <button type="button" class="btn denegar" id="f-borrar"><svg class="ico"><use href="#i-papelera"/></svg>Borrar</button>
+        </div>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+      </form>
+
+      <section class="caja" id="caja-solo-lectura" hidden>
+        <h2>Solo lectura</h2>
+        <p class="nota" id="texto-solo-lectura"></p>
+      </section>
+    </aside>
+  </div>
+  </main>
+</div>
+
+<script th:src="@{/js/comun.js}"></script>
+<script th:src="@{/js/horarios.js}"></script>
+</body>
+</html>

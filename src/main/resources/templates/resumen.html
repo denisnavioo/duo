@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" data-modo="claro">
+<head th:replace="~{fragmentos :: cabeza('Resumen')}"></head>
+<body th:class="${yo.username}"
+      th:data-yo="${yo.username}" th:data-yo-nombre="${yo.nombre}"
+      th:data-otro="${otro.username}" th:data-otro-nombre="${otro.nombre}">
+
+<th:block th:replace="~{fragmentos :: iconos}"></th:block>
+
+<div class="app">
+  <header th:replace="~{fragmentos :: cabecera('resumen')}"></header>
+
+  <main class="contenido">
+    <section class="titular">
+      <div>
+        <h1>Hola, <span class="nombre-yo" th:text="${yo.nombre}">Ana</span></h1>
+        <p class="sub" id="r-fecha">Hoy</p>
+      </div>
+    </section>
+
+    <!-- Planes juntos que esperan tu respuesta, y recordatorios de mañana -->
+    <section class="avisos" id="avisos" aria-live="polite"></section>
+    <div class="recordatorios" id="recordatorios" aria-live="polite"></div>
+
+    <div class="rejilla-resumen">
+      <div class="col-principal">
+        <!-- Proximo plan juntos -->
+        <section class="grupo-r g-plan" aria-labelledby="r-plan-titulo">
+          <h2 class="titulo-grupo" id="r-plan-titulo">Próximo plan juntos <a th:href="@{/calendario}">Calendario</a></h2>
+          <div class="caja r-plan" id="r-plan"><div class="plan-vacio cargando" id="r-plan-cuerpo"></div></div>
+        </section>
+
+        <!-- La semana de los dos -->
+        <section class="grupo-r g-semana" aria-labelledby="r-semana-titulo">
+          <h2 class="titulo-grupo" id="r-semana-titulo">Esta semana <a th:href="@{/calendario}">Ver todo</a></h2>
+          <div class="caja">
+            <div class="pills" id="pills"></div>
+            <ol class="agenda" id="r-semana"><li class="cargando"></li></ol>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-lateral">
+        <!-- Notas de hoy: la que me deja el otro y la mia, en un mismo grupo -->
+        <section class="grupo-r g-notas notas" aria-labelledby="r-notas-titulo">
+          <h2 class="titulo-grupo" id="r-notas-titulo">Notas de hoy</h2>
+          <div class="caja caja-filas">
+            <div class="fila-nota nota-otro" th:style="|--c: var(--c-${otro.username})|" aria-live="polite">
+              <h3><span><i class="punto" aria-hidden="true"></i><th:block th:text="${otro.nombre}">Otro</th:block></span> <small id="nota-otro-hora"></small></h3>
+              <p class="nota-otro-texto" id="nota-otro-texto" hidden></p>
+              <p class="nota-vacia" id="nota-otro-vacia" th:text="|Aún no te ha dejado nota hoy.|">Aún no hay nota hoy.</p>
+            </div>
+            <form class="fila-nota nota-mia" id="nota-form" th:style="|--c: var(--c-${yo.username})|">
+              <h3><span><i class="punto" aria-hidden="true"></i>Tú</span> <small id="nota-estado">Para <th:block th:text="${otro.nombre}">Otro</th:block></small></h3>
+              <div id="nota-escribir">
+                <label for="nota-texto" class="sr-solo" th:text="|Nota para ${otro.nombre}|">Nota</label>
+                <textarea id="nota-texto" maxlength="300" rows="3"
+                          th:placeholder="|Escribe algo para ${otro.nombre}…|" placeholder="Escribe algo…"></textarea>
+                <div class="nota-pie">
+                  <span id="nota-cuenta">Solo 1 al día · 0/300</span>
+                  <button class="btn primario" type="submit" id="nota-enviar" disabled>Enviar</button>
+                </div>
+              </div>
+              <p class="nota-enviada" id="nota-enviada" hidden></p>
+              <p class="form-error" id="nota-error" role="alert" hidden></p>
+            </form>
+          </div>
+        </section>
+
+        <!-- Ahorro del mes (privado) -->
+        <section class="grupo-r g-ahorro" aria-labelledby="r-ahorro-titulo">
+          <h2 class="titulo-grupo" id="r-ahorro-titulo"><span id="r-ahorro-nombre">Tu ahorro del mes</span> <a th:href="@{/ahorros}">Ahorros</a></h2>
+          <div class="caja" id="r-ahorro"><div class="cargando"></div></div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script th:src="@{/js/comun.js}"></script>
+<script th:src="@{/js/resumen.js}"></script>
+<script th:src="@{/js/notas.js}"></script>
+</body>
+</html>
