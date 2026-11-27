@@ -2,7 +2,9 @@
 
 Duo es un planificador para dos personas: la semana de cada uno, los planes que hacéis juntos, el dinero y los gastos con amigos, todo en una sola web que corre en tu propio ordenador.
 
-Nació como el proyecto personal con el que mi pareja y yo nos organizamos. Este repositorio es la versión para que cualquiera la descargue y la use: sin contraseñas ni nombres reales: solo el código de la web, lista para descargar y modificar. Es gratis y abierta (licencia MIT); si te sirve, me alegrará mucho.
+Nació como el proyecto personal con el que mi pareja y yo nos organizamos. Este repositorio es la versión para que cualquiera la descargue y la use: sin contraseñas ni nombres reales, solo el código de la web, lista para descargar y modificar. Es gratis y abierta (licencia MIT); si te sirve, me alegrará mucho.
+
+**Página del proyecto:** [landing.duo-planing.uk](https://landing.duo-planing.uk): qué es Duo, capturas y cómo está hecho.
 
 Autor: **Denis Navío** ([@denisnavioo](https://github.com/denisnavioo)).
 
